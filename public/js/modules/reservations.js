@@ -25,6 +25,7 @@ const ReservationsModule = {
           <button class="btn btn-ghost btn-sm" onclick="ReservationsModule.selectedDate='${Utils.today()}'; ReservationsModule.render(document.getElementById('main-body'))">Today</button>
         </div>
         <div class="flex gap-sm">
+          <button class="btn btn-success" onclick="ReservationsModule.walkIn()">Walk-In</button>
           <button class="btn btn-secondary" onclick="ReservationsModule.showWaitlist()">Waitlist</button>
           <button class="btn btn-primary" onclick="ReservationsModule.addReservation()">+ New Reservation</button>
         </div>
@@ -139,6 +140,47 @@ const ReservationsModule = {
     try {
       await API.updateReservation(id, { status: 'cancelled' });
       UI.toast('Cancelled', '', 'warning');
+      this.render(document.getElementById('main-body'));
+    } catch (err) { UI.toast('Error', err.message, 'danger'); }
+  },
+
+  async walkIn() {
+    const tables = await API.tables().catch(() => []);
+    const available = tables.filter(t => t.status === 'available' || t.status === 'open');
+    const tableOpts = available.length
+      ? `<option value="">No table yet</option>` + available.map(t => `<option value="${t.id}">${Utils.escapeHtml(t.name || 'Table ' + t.number)} (seats ${t.capacity})</option>`).join('')
+      : `<option value="">No tables available</option>`;
+
+    const html = `
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Guest Name</label><input class="form-input" id="wi-name" placeholder="Optional"></div>
+        <div class="form-group"><label class="form-label">Party Size *</label><input type="number" class="form-input" id="wi-size" value="2" min="1"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Table</label><select class="form-select" id="wi-table">${tableOpts}</select></div>
+        <div class="form-group"><label class="form-label">Phone</label><input class="form-input" id="wi-phone"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" id="wi-notes" rows="2"></textarea></div>
+    `;
+    const modal = await UI.modal('Seat Walk-In', html, { confirmText: 'Seat Now' });
+    if (!modal) return;
+    const partySize = parseInt(modal.querySelector('#wi-size').value);
+    if (!partySize || partySize < 1) { UI.toast('Error', 'Party size is required', 'danger'); return; }
+    const tableId = modal.querySelector('#wi-table').value;
+    try {
+      await API.createReservation({
+        guest_name: modal.querySelector('#wi-name').value.trim() || `Walk-In (${partySize})`,
+        phone: modal.querySelector('#wi-phone').value.trim(),
+        reservation_date: Utils.today(),
+        reservation_time: new Date().toTimeString().slice(0, 5),
+        party_size: partySize,
+        duration_minutes: 90,
+        notes: modal.querySelector('#wi-notes').value.trim(),
+        status: 'seated',
+        table_id: tableId ? parseInt(tableId) : undefined,
+      });
+      UI.toast('Walk-In Seated', `Party of ${partySize} seated`, 'success');
+      this.selectedDate = Utils.today();
       this.render(document.getElementById('main-body'));
     } catch (err) { UI.toast('Error', err.message, 'danger'); }
   },

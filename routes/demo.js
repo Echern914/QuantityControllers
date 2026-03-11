@@ -11,8 +11,34 @@ router.post('/start', (req, res) => {
   // Check if demo data already exists (by checking for demo employee)
   const existing = db.prepare(`SELECT id FROM employees WHERE email = 'demo@venuecore.pos'`).get();
   if (existing) {
-    // Clean up old demo data first
-    cleanupDemo(db);
+    // Demo data exists — reuse it instead of recreating (supports multiple concurrent users)
+    try {
+      const token = generateToken();
+      db.prepare(`INSERT INTO sessions (token, employee_id, expires_at) VALUES (?, ?, datetime('now', '+2 hours'))`)
+        .run(token, existing.id);
+
+      // Track active demo sessions
+      const count = db.prepare(`SELECT COALESCE(value, '0') as v FROM settings WHERE key = 'demo_session_count'`).get();
+      const newCount = parseInt(count?.v || '0') + 1;
+      db.prepare(`INSERT OR REPLACE INTO settings (key, value) VALUES ('demo_session_count', ?)`).run(String(newCount));
+
+      return res.json({
+        token,
+        employee: {
+          id: existing.id,
+          firstName: 'Demo',
+          lastName: 'Admin',
+          role: 'admin',
+          color: '#6366f1',
+          permissions: {},
+        },
+        demo: true,
+      });
+    } catch (err) {
+      // Existing demo data is corrupted — clean it up and fall through to recreate
+      console.error('[Demo] Reuse failed, recreating:', err.message);
+      try { cleanupDemo(db); } catch {}
+    }
   }
 
   // ---- Demo Employees ----
@@ -236,8 +262,9 @@ router.post('/start', (req, res) => {
   db.prepare(`INSERT INTO sessions (token, employee_id, expires_at) VALUES (?, ?, datetime('now', '+2 hours'))`)
     .run(token, demoAdminId);
 
-  // Tag that demo is active
+  // Tag that demo is active and track session count
   db.prepare(`INSERT OR REPLACE INTO settings (key, value) VALUES ('demo_active', 'true')`).run();
+  db.prepare(`INSERT OR REPLACE INTO settings (key, value) VALUES ('demo_session_count', '1')`).run();
 
   res.json({
     token,
@@ -253,78 +280,114 @@ router.post('/start', (req, res) => {
   });
 });
 
-// POST /api/demo/cleanup - Remove all demo data
+// POST /api/demo/cleanup - Decrement session count; only wipe data when last user exits
 router.post('/cleanup', (req, res) => {
   const db = getDb();
-  cleanupDemo(db);
+
+  // Expire the caller's session token
+  const authHeader = req.headers.authorization;
+  if (authHeader) {
+    const token = authHeader.replace('Bearer ', '');
+    db.prepare(`DELETE FROM sessions WHERE token = ?`).run(token);
+  }
+
+  // Decrement active demo session count
+  const count = db.prepare(`SELECT COALESCE(value, '0') as v FROM settings WHERE key = 'demo_session_count'`).get();
+  const remaining = Math.max(0, parseInt(count?.v || '0') - 1);
+  db.prepare(`INSERT OR REPLACE INTO settings (key, value) VALUES ('demo_session_count', ?)`).run(String(remaining));
+
+  if (remaining <= 0) {
+    // Last demo user exited — clean up all demo data so next start is fresh
+    cleanupDemo(db);
+  }
+
   res.json({ success: true });
 });
 
 function cleanupDemo(db) {
-  // Delete demo employees and all their related data
-  const demoEmps = db.prepare(`SELECT id FROM employees WHERE email LIKE 'demo%@venuecore.pos'`).all();
-  const demoIds = demoEmps.map(e => e.id);
+  // Temporarily disable FK checks so we can delete in any order without constraint errors
+  db.pragma('foreign_keys = OFF');
 
-  if (demoIds.length > 0) {
-    const placeholders = demoIds.map(() => '?').join(',');
-
-    // Delete orders + items for demo employees
-    const demoOrders = db.prepare(`SELECT id FROM orders WHERE employee_id IN (${placeholders})`).all(...demoIds);
-    if (demoOrders.length > 0) {
-      const orderIds = demoOrders.map(o => o.id);
-      const orderPlaceholders = orderIds.map(() => '?').join(',');
-      db.prepare(`DELETE FROM order_items WHERE order_id IN (${orderPlaceholders})`).run(...orderIds);
-      db.prepare(`DELETE FROM order_payments WHERE order_id IN (${orderPlaceholders})`).run(...orderIds);
-      db.prepare(`DELETE FROM kitchen_queue WHERE order_id IN (${orderPlaceholders})`).run(...orderIds);
-    }
-    db.prepare(`DELETE FROM orders WHERE employee_id IN (${placeholders})`).run(...demoIds);
-    db.prepare(`DELETE FROM time_entries WHERE employee_id IN (${placeholders})`).run(...demoIds);
-    db.prepare(`DELETE FROM sessions WHERE employee_id IN (${placeholders})`).run(...demoIds);
-    db.prepare(`DELETE FROM waste_log WHERE employee_id IN (${placeholders})`).run(...demoIds);
-    db.prepare(`DELETE FROM shifts WHERE employee_id IN (${placeholders})`).run(...demoIds);
-    db.prepare(`DELETE FROM employees WHERE id IN (${placeholders})`).run(...demoIds);
-  }
-
-  // Delete reorder requests and supply alert data BEFORE ingredients/suppliers (FK constraint)
-  try { db.prepare(`DELETE FROM reorder_requests`).run(); } catch {}
-  try { db.prepare(`DELETE FROM notification_preferences`).run(); } catch {}
-  db.prepare(`DELETE FROM alerts WHERE type IN ('reorder_request', 'reorder_approved', 'expiring_stock', 'low_stock', 'out_of_stock')`).run();
-
-  // Delete demo-specific data (using demo lot numbers and order numbers)
-  db.prepare(`DELETE FROM inventory WHERE lot_number LIKE 'DEMO-%'`).run();
-  db.prepare(`DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE order_number LIKE 'DM-%')`).run();
-  db.prepare(`DELETE FROM orders WHERE order_number LIKE 'DM-%'`).run();
-
-  // Delete seeded categories, menu items, etc. (only if no real data references them)
-  db.prepare(`DELETE FROM recipes`).run();
-  db.prepare(`DELETE FROM menu_items WHERE id NOT IN (SELECT DISTINCT menu_item_id FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE order_number NOT LIKE 'DM-%'))`).run();
-  db.prepare(`DELETE FROM menu_categories WHERE id NOT IN (SELECT DISTINCT category_id FROM menu_items WHERE category_id IS NOT NULL)`).run();
-  db.prepare(`DELETE FROM ingredients WHERE id NOT IN (SELECT DISTINCT ingredient_id FROM inventory WHERE lot_number NOT LIKE 'DEMO-%')`).run();
-  db.prepare(`DELETE FROM categories WHERE id NOT IN (SELECT DISTINCT category_id FROM ingredients WHERE category_id IS NOT NULL)`).run();
-  db.prepare(`DELETE FROM tables WHERE id NOT IN (SELECT DISTINCT table_id FROM orders WHERE table_id IS NOT NULL AND order_number NOT LIKE 'DM-%')`).run();
-  db.prepare(`DELETE FROM customers WHERE email LIKE '%@demo.com'`).run();
-  db.prepare(`DELETE FROM menu_modifiers WHERE id NOT IN (SELECT DISTINCT modifier_id FROM menu_item_modifiers)`).run();
-  db.prepare(`DELETE FROM suppliers WHERE email LIKE '%@%spirits.com' OR email LIKE '%@freshfarms.com'`).run();
-  db.prepare(`DELETE FROM alerts WHERE data LIKE '%demo%'`).run();
-  db.prepare(`DELETE FROM settings WHERE key = 'demo_active'`).run();
-
-  // Cleanup back-office demo data
-  try { db.prepare(`DELETE FROM catering_events WHERE notes LIKE '%Demo%'`).run(); } catch {}
-  try { db.prepare(`DELETE FROM catering_packages WHERE name IN ('Classic Buffet', 'Premium Plated')`).run(); } catch {}
-  try { db.prepare(`DELETE FROM marketing_campaigns WHERE name IN ('Happy Hour Launch', 'VIP Weekend Event', 'March Newsletter')`).run(); } catch {}
-  try { db.prepare(`DELETE FROM promotions WHERE code IN ('HAPPY20', 'WELCOME10', 'BDAY25')`).run(); } catch {}
   try {
-    const demoCourses = db.prepare(`SELECT id FROM training_courses WHERE title IN ('Food Safety Fundamentals', 'POS System Training', 'Advanced Mixology')`).all();
-    if (demoCourses.length > 0) {
-      const cIds = demoCourses.map(c => c.id);
-      const ph = cIds.map(() => '?').join(',');
-      db.prepare(`DELETE FROM training_enrollments WHERE course_id IN (${ph})`).run(...cIds);
-      db.prepare(`DELETE FROM training_lessons WHERE course_id IN (${ph})`).run(...cIds);
-      db.prepare(`DELETE FROM training_courses WHERE id IN (${ph})`).run(...cIds);
+    // Delete demo employees and all their related data
+    const demoEmps = db.prepare(`SELECT id FROM employees WHERE email LIKE 'demo%@venuecore.pos'`).all();
+    const demoIds = demoEmps.map(e => e.id);
+
+    if (demoIds.length > 0) {
+      const placeholders = demoIds.map(() => '?').join(',');
+
+      // Delete orders + items for demo employees
+      const demoOrders = db.prepare(`SELECT id FROM orders WHERE employee_id IN (${placeholders})`).all(...demoIds);
+      if (demoOrders.length > 0) {
+        const orderIds = demoOrders.map(o => o.id);
+        const orderPlaceholders = orderIds.map(() => '?').join(',');
+        try { db.prepare(`DELETE FROM order_items WHERE order_id IN (${orderPlaceholders})`).run(...orderIds); } catch {}
+        try { db.prepare(`DELETE FROM order_payments WHERE order_id IN (${orderPlaceholders})`).run(...orderIds); } catch {}
+        try { db.prepare(`DELETE FROM kitchen_queue WHERE order_id IN (${orderPlaceholders})`).run(...orderIds); } catch {}
+        try { db.prepare(`DELETE FROM transactions WHERE order_id IN (${orderPlaceholders})`).run(...orderIds); } catch {}
+      }
+      try { db.prepare(`DELETE FROM orders WHERE employee_id IN (${placeholders})`).run(...demoIds); } catch {}
+      try { db.prepare(`DELETE FROM time_entries WHERE employee_id IN (${placeholders})`).run(...demoIds); } catch {}
+      try { db.prepare(`DELETE FROM sessions WHERE employee_id IN (${placeholders})`).run(...demoIds); } catch {}
+      try { db.prepare(`DELETE FROM waste_log WHERE employee_id IN (${placeholders})`).run(...demoIds); } catch {}
+      try { db.prepare(`DELETE FROM shifts WHERE employee_id IN (${placeholders})`).run(...demoIds); } catch {}
+      try { db.prepare(`DELETE FROM training_enrollments WHERE employee_id IN (${placeholders})`).run(...demoIds); } catch {}
+      try { db.prepare(`DELETE FROM employees WHERE id IN (${placeholders})`).run(...demoIds); } catch {}
     }
-  } catch {}
-  try { db.prepare(`DELETE FROM bank_transactions WHERE reference LIKE 'DEP-%' OR reference LIKE 'CHK-%'`).run(); } catch {}
-  try { db.prepare(`DELETE FROM bank_accounts WHERE bank_name = 'Chase' AND account_number_last4 IN ('4521', '8877')`).run(); } catch {}
+
+    // Delete all demo-tagged data
+    try { db.prepare(`DELETE FROM reorder_requests`).run(); } catch {}
+    try { db.prepare(`DELETE FROM notification_preferences`).run(); } catch {}
+    try { db.prepare(`DELETE FROM alerts WHERE type IN ('reorder_request', 'reorder_approved', 'expiring_stock', 'low_stock', 'out_of_stock')`).run(); } catch {}
+
+    // Orders with demo prefixes
+    try { db.prepare(`DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE order_number LIKE 'DM-%' OR order_number LIKE 'MAN-%' OR order_number LIKE 'CLV-%')`).run(); } catch {}
+    try { db.prepare(`DELETE FROM order_payments WHERE order_id IN (SELECT id FROM orders WHERE order_number LIKE 'DM-%' OR order_number LIKE 'MAN-%' OR order_number LIKE 'CLV-%')`).run(); } catch {}
+    try { db.prepare(`DELETE FROM kitchen_queue WHERE order_id IN (SELECT id FROM orders WHERE order_number LIKE 'DM-%' OR order_number LIKE 'MAN-%' OR order_number LIKE 'CLV-%')`).run(); } catch {}
+    try { db.prepare(`DELETE FROM transactions WHERE order_id IN (SELECT id FROM orders WHERE order_number LIKE 'DM-%' OR order_number LIKE 'MAN-%' OR order_number LIKE 'CLV-%')`).run(); } catch {}
+    try { db.prepare(`DELETE FROM orders WHERE order_number LIKE 'DM-%' OR order_number LIKE 'MAN-%' OR order_number LIKE 'CLV-%'`).run(); } catch {}
+
+    // Delete remaining transactions that reference demo ingredients
+    try { db.prepare(`DELETE FROM transactions WHERE ingredient_id IN (SELECT id FROM ingredients WHERE id NOT IN (SELECT DISTINCT ingredient_id FROM inventory WHERE lot_number NOT LIKE 'DEMO-%' AND lot_number IS NOT NULL))`).run(); } catch {}
+
+    // Inventory, recipes, menu items, ingredients
+    try { db.prepare(`DELETE FROM inventory WHERE lot_number LIKE 'DEMO-%'`).run(); } catch {}
+    try { db.prepare(`DELETE FROM recipes`).run(); } catch {}
+    try { db.prepare(`DELETE FROM menu_item_modifiers`).run(); } catch {}
+    try { db.prepare(`DELETE FROM menu_items WHERE id NOT IN (SELECT DISTINCT menu_item_id FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE order_number NOT LIKE 'DM-%'))`).run(); } catch {}
+    try { db.prepare(`DELETE FROM menu_categories WHERE id NOT IN (SELECT DISTINCT category_id FROM menu_items WHERE category_id IS NOT NULL)`).run(); } catch {}
+    try { db.prepare(`DELETE FROM ingredients WHERE id NOT IN (SELECT DISTINCT ingredient_id FROM inventory WHERE lot_number NOT LIKE 'DEMO-%' AND lot_number IS NOT NULL)`).run(); } catch {}
+    try { db.prepare(`DELETE FROM categories WHERE id NOT IN (SELECT DISTINCT category_id FROM ingredients WHERE category_id IS NOT NULL)`).run(); } catch {}
+    try { db.prepare(`DELETE FROM tables WHERE id NOT IN (SELECT DISTINCT table_id FROM orders WHERE table_id IS NOT NULL AND order_number NOT LIKE 'DM-%')`).run(); } catch {}
+    try { db.prepare(`DELETE FROM customers WHERE email LIKE '%@demo.com'`).run(); } catch {}
+    try { db.prepare(`DELETE FROM menu_modifiers WHERE id NOT IN (SELECT DISTINCT modifier_id FROM menu_item_modifiers)`).run(); } catch {}
+    try { db.prepare(`DELETE FROM suppliers WHERE email LIKE '%@%spirits.com' OR email LIKE '%@freshfarms.com'`).run(); } catch {}
+    try { db.prepare(`DELETE FROM alerts WHERE data LIKE '%demo%'`).run(); } catch {}
+    try { db.prepare(`DELETE FROM settings WHERE key = 'demo_active'`).run(); } catch {}
+    try { db.prepare(`DELETE FROM settings WHERE key = 'demo_session_count'`).run(); } catch {}
+
+    // Back-office demo data
+    try { db.prepare(`DELETE FROM catering_events WHERE notes LIKE '%Demo%'`).run(); } catch {}
+    try { db.prepare(`DELETE FROM catering_packages WHERE name IN ('Classic Buffet', 'Premium Plated')`).run(); } catch {}
+    try { db.prepare(`DELETE FROM marketing_campaigns WHERE name IN ('Happy Hour Launch', 'VIP Weekend Event', 'March Newsletter')`).run(); } catch {}
+    try { db.prepare(`DELETE FROM promotions WHERE code IN ('HAPPY20', 'WELCOME10', 'BDAY25')`).run(); } catch {}
+    try {
+      const demoCourses = db.prepare(`SELECT id FROM training_courses WHERE title IN ('Food Safety Fundamentals', 'POS System Training', 'Advanced Mixology')`).all();
+      if (demoCourses.length > 0) {
+        const cIds = demoCourses.map(c => c.id);
+        const ph = cIds.map(() => '?').join(',');
+        db.prepare(`DELETE FROM training_enrollments WHERE course_id IN (${ph})`).run(...cIds);
+        db.prepare(`DELETE FROM training_lessons WHERE course_id IN (${ph})`).run(...cIds);
+        db.prepare(`DELETE FROM training_courses WHERE id IN (${ph})`).run(...cIds);
+      }
+    } catch {}
+    try { db.prepare(`DELETE FROM bank_transactions WHERE reference LIKE 'DEP-%' OR reference LIKE 'CHK-%'`).run(); } catch {}
+    try { db.prepare(`DELETE FROM bank_accounts WHERE bank_name = 'Chase' AND account_number_last4 IN ('4521', '8877')`).run(); } catch {}
+  } finally {
+    // Always re-enable FK checks
+    db.pragma('foreign_keys = ON');
+  }
 }
 
 module.exports = router;
+module.exports.cleanupDemo = cleanupDemo;

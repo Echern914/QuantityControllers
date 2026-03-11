@@ -83,6 +83,21 @@ app.use(errorHandler);
 // Initialize DB and start
 initializeSchema();
 
+// Clean up any leftover demo data from previous sessions (e.g. browser closed without exiting demo)
+try {
+  const { getDb } = require('./db/database');
+  const db = getDb();
+  const demoExists = db.prepare(`SELECT id FROM employees WHERE email LIKE 'demo%@venuecore.pos'`).get();
+  if (demoExists) {
+    console.log('[Startup] Cleaning up leftover demo data...');
+    const { cleanupDemo } = require('./routes/demo');
+    cleanupDemo(db);
+    console.log('[Startup] Demo data cleaned');
+  }
+} catch (e) {
+  console.error('[Startup] Demo cleanup error:', e.message);
+}
+
 // Start supply monitor (checks inventory every 15 minutes)
 setBroadcast(broadcast);
 startMonitor(15);

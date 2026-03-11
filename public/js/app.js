@@ -30,49 +30,86 @@ const App = {
     }
   },
 
-  showLogin() {
+  async showLogin() {
     this.demoMode = false;
     document.body.classList.remove('demo-mode');
     const banner = document.getElementById('demo-banner');
     if (banner) banner.remove();
 
+    // Check if any real employees exist
+    let hasEmployees = true;
+    try {
+      const status = await API.get('/api/auth/status');
+      hasEmployees = status.hasEmployees;
+    } catch {}
+
     const app = document.getElementById('app');
-    app.innerHTML = `
-      <div class="login-screen">
-        <div class="login-container animate-fade">
-          <div class="login-logo">VENUECORE</div>
-          <div class="login-subtitle">Point of Sale System</div>
-          <div class="pin-display">
-            <div class="pin-dot" id="dot-0"></div>
-            <div class="pin-dot" id="dot-1"></div>
-            <div class="pin-dot" id="dot-2"></div>
-            <div class="pin-dot" id="dot-3"></div>
-          </div>
-          <div class="pin-pad">
-            <button class="pin-btn" onclick="App.pinInput('1')">1</button>
-            <button class="pin-btn" onclick="App.pinInput('2')">2</button>
-            <button class="pin-btn" onclick="App.pinInput('3')">3</button>
-            <button class="pin-btn" onclick="App.pinInput('4')">4</button>
-            <button class="pin-btn" onclick="App.pinInput('5')">5</button>
-            <button class="pin-btn" onclick="App.pinInput('6')">6</button>
-            <button class="pin-btn" onclick="App.pinInput('7')">7</button>
-            <button class="pin-btn" onclick="App.pinInput('8')">8</button>
-            <button class="pin-btn" onclick="App.pinInput('9')">9</button>
-            <button class="pin-btn clear" onclick="App.pinClear()">CLR</button>
-            <button class="pin-btn" onclick="App.pinInput('0')">0</button>
-            <button class="pin-btn enter" onclick="App.pinSubmit()">GO</button>
-          </div>
-          <div class="login-error" id="login-error"></div>
-          <div class="demo-section">
-            <div class="demo-section-label">First time here?</div>
-            <button class="demo-start-btn" onclick="App.startDemo()">
-              <span class="demo-play-icon">></span>
-              <span>Try Interactive Demo</span>
-            </button>
+
+    if (!hasEmployees) {
+      // First-time setup — no employees exist yet
+      app.innerHTML = `
+        <div class="login-screen">
+          <div class="login-container animate-fade">
+            <div class="login-logo">VENUECORE</div>
+            <div class="login-subtitle">Point of Sale System</div>
+            <div class="setup-section">
+              <h2 style="color:#fff;margin:0 0 4px;font-size:1.1rem;">Welcome! Set up your admin account</h2>
+              <p style="color:#94a3b8;margin:0 0 18px;font-size:.85rem;">Create your first employee to get started.</p>
+              <input id="setup-first" type="text" placeholder="First Name" class="setup-input" />
+              <input id="setup-last" type="text" placeholder="Last Name (optional)" class="setup-input" />
+              <input id="setup-pin" type="password" inputmode="numeric" maxlength="4" placeholder="4-Digit PIN" class="setup-input" />
+              <div class="login-error" id="login-error"></div>
+              <button class="setup-btn" onclick="App.submitSetup()">Create Admin Account</button>
+            </div>
+            <div class="demo-section">
+              <div class="demo-section-label">Just exploring?</div>
+              <button class="demo-start-btn" onclick="App.startDemo()">
+                <span class="demo-play-icon">></span>
+                <span>Try Interactive Demo</span>
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-    `;
+      `;
+    } else {
+      // Normal PIN login
+      app.innerHTML = `
+        <div class="login-screen">
+          <div class="login-container animate-fade">
+            <div class="login-logo">VENUECORE</div>
+            <div class="login-subtitle">Point of Sale System</div>
+            <div class="pin-display">
+              <div class="pin-dot" id="dot-0"></div>
+              <div class="pin-dot" id="dot-1"></div>
+              <div class="pin-dot" id="dot-2"></div>
+              <div class="pin-dot" id="dot-3"></div>
+            </div>
+            <div class="pin-pad">
+              <button class="pin-btn" onclick="App.pinInput('1')">1</button>
+              <button class="pin-btn" onclick="App.pinInput('2')">2</button>
+              <button class="pin-btn" onclick="App.pinInput('3')">3</button>
+              <button class="pin-btn" onclick="App.pinInput('4')">4</button>
+              <button class="pin-btn" onclick="App.pinInput('5')">5</button>
+              <button class="pin-btn" onclick="App.pinInput('6')">6</button>
+              <button class="pin-btn" onclick="App.pinInput('7')">7</button>
+              <button class="pin-btn" onclick="App.pinInput('8')">8</button>
+              <button class="pin-btn" onclick="App.pinInput('9')">9</button>
+              <button class="pin-btn clear" onclick="App.pinClear()">CLR</button>
+              <button class="pin-btn" onclick="App.pinInput('0')">0</button>
+              <button class="pin-btn enter" onclick="App.pinSubmit()">GO</button>
+            </div>
+            <div class="login-error" id="login-error"></div>
+            <div class="demo-section">
+              <div class="demo-section-label">First time here?</div>
+              <button class="demo-start-btn" onclick="App.startDemo()">
+                <span class="demo-play-icon">></span>
+                <span>Try Interactive Demo</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
     this._pin = '';
   },
 
@@ -103,6 +140,25 @@ const App = {
     } catch (err) {
       document.getElementById('login-error').textContent = err.message;
       this.pinClear();
+    }
+  },
+
+  async submitSetup() {
+    const first_name = document.getElementById('setup-first').value.trim();
+    const last_name = document.getElementById('setup-last').value.trim();
+    const pin = document.getElementById('setup-pin').value.trim();
+    const errEl = document.getElementById('login-error');
+
+    if (!first_name) { errEl.textContent = 'First name is required'; return; }
+    if (!pin || pin.length !== 4 || !/^\d{4}$/.test(pin)) { errEl.textContent = 'Enter a 4-digit PIN'; return; }
+
+    try {
+      const data = await API.post('/api/auth/setup', { first_name, last_name, pin });
+      API.setToken(data.token);
+      this.employee = data.employee;
+      this.showApp();
+    } catch (err) {
+      errEl.textContent = err.message;
     }
   },
 
