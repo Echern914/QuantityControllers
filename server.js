@@ -1,0 +1,75 @@
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const path = require('path');
+const { initializeSchema } = require('./db/schema');
+const { errorHandler } = require('./middleware/errorHandler');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Middleware
+app.use(cors());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.static(path.join(__dirname, 'public')));
+
+// SSE clients for real-time notifications
+const sseClients = new Set();
+app.locals.sseClients = sseClients;
+
+function broadcast(data) {
+  const msg = `data: ${JSON.stringify(data)}\n\n`;
+  for (const client of sseClients) {
+    client.write(msg);
+  }
+}
+app.locals.broadcast = broadcast;
+
+// API Routes
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/menu', require('./routes/menu'));
+app.use('/api/pos', require('./routes/pos'));
+app.use('/api/inventory', require('./routes/inventory'));
+app.use('/api/suppliers', require('./routes/suppliers'));
+app.use('/api/staff', require('./routes/staff'));
+app.use('/api/timeclock', require('./routes/timeclock'));
+app.use('/api/scheduling', require('./routes/scheduling'));
+app.use('/api/customers', require('./routes/customers'));
+app.use('/api/tables', require('./routes/tables'));
+app.use('/api/reservations', require('./routes/reservations'));
+app.use('/api/kitchen', require('./routes/kitchen'));
+app.use('/api/analytics', require('./routes/analytics'));
+app.use('/api/reports', require('./routes/reports'));
+app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/ai', require('./routes/ai'));
+app.use('/api/settings', require('./routes/settings'));
+
+// SSE endpoint
+app.get('/api/events', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  sseClients.add(res);
+  req.on('close', () => sseClients.delete(res));
+});
+
+// SPA fallback
+app.get('/{*splat}', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Error handler
+app.use(errorHandler);
+
+// Initialize DB and start
+initializeSchema();
+app.listen(PORT, () => {
+  console.log(`
+  ╔══════════════════════════════════════════════╗
+  ║          NEXUS POS SYSTEM v1.0               ║
+  ║          http://localhost:${PORT}               ║
+  ╚══════════════════════════════════════════════╝
+  `);
+});
