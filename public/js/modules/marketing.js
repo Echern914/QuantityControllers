@@ -42,9 +42,9 @@ const MarketingModule = {
     const d = await API.marketingDashboard();
     el.innerHTML = `
       <div class="grid grid-4 gap-md mb-md">
-        ${UI.statCard('Active Campaigns', d.active_campaigns, '\u2709')}
+        ${UI.statCard('Active Campaigns', d.active_campaigns, '')}
         ${UI.statCard('Active Promos', d.active_promotions, '%')}
-        ${UI.statCard('Emails Sent', d.total_emails_sent, '\u2192')}
+        ${UI.statCard('Emails Sent', d.total_emails_sent, '')}
         ${UI.statCard('Revenue Generated', Utils.currency(d.revenue_generated || 0), '$')}
       </div>
       <div class="grid grid-2 gap-md mb-md">

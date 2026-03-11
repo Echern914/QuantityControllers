@@ -40,10 +40,10 @@ const APModule = {
     const d = await API.apDashboard();
     el.innerHTML = `
       <div class="grid grid-4 gap-md mb-md">
-        ${UI.statCard('Pending Approval', d.pending_approval?.count || 0, '\u23F3')}
+        ${UI.statCard('Pending Approval', d.pending_approval?.count || 0, '')}
         ${UI.statCard('Unpaid', Utils.currency(d.unpaid?.total || 0), '$')}
-        ${UI.statCard('Overdue', Utils.currency(d.overdue?.total || 0), '\u26A0')}
-        ${UI.statCard('Due This Week', Utils.currency(d.due_soon?.total || 0), '\u2192')}
+        ${UI.statCard('Overdue', Utils.currency(d.overdue?.total || 0), '')}
+        ${UI.statCard('Due This Week', Utils.currency(d.due_soon?.total || 0), '')}
       </div>
       <div class="grid grid-2 gap-md">
         <div class="card">

@@ -40,10 +40,10 @@ const CateringModule = {
     const d = await API.cateringDashboard();
     el.innerHTML = `
       <div class="grid grid-4 gap-md mb-md">
-        ${UI.statCard('Upcoming Events', d.upcoming_events, '\u2316')}
+        ${UI.statCard('Upcoming Events', d.upcoming_events, '')}
         ${UI.statCard('This Month Revenue', Utils.currency(d.this_month?.revenue || 0), '$')}
-        ${UI.statCard('Pending Deposits', Utils.currency(d.pending_deposits?.amount || 0), '\u23F3')}
-        ${UI.statCard('Outstanding', Utils.currency(d.outstanding_balance || 0), '\u26A0')}
+        ${UI.statCard('Pending Deposits', Utils.currency(d.pending_deposits?.amount || 0), '')}
+        ${UI.statCard('Outstanding', Utils.currency(d.outstanding_balance || 0), '')}
       </div>
       <div class="grid grid-2 gap-md">
         <div class="card">

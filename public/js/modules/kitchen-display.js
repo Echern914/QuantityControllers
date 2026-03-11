@@ -47,7 +47,7 @@ const KitchenDisplay = {
       // Render tickets
       const grid = document.getElementById('kds-grid');
       if (orders.length === 0) {
-        grid.innerHTML = '<div class="empty-state" style="grid-column: 1/-1"><div class="empty-icon">\u2713</div><h3>All Clear!</h3><p>No orders in queue</p></div>';
+        grid.innerHTML = '<div class="empty-state" style="grid-column: 1/-1"><div class="empty-icon">OK</div><h3>All Clear!</h3><p>No orders in queue</p></div>';
         return;
       }
 

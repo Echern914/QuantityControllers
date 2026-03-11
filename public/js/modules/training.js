@@ -42,15 +42,15 @@ const TrainingModule = {
     const d = await API.trainingDashboard();
     el.innerHTML = `
       <div class="grid grid-4 gap-md mb-md">
-        ${UI.statCard('Courses', d.total_courses, '\u2630')}
-        ${UI.statCard('Active Enrollments', d.active_enrollments, '\u25B6')}
-        ${UI.statCard('Completion Rate', d.completion_rate + '%', '\u2713')}
-        ${UI.statCard('Avg Score', d.avg_score, '\u2605')}
+        ${UI.statCard('Courses', d.total_courses, '')}
+        ${UI.statCard('Active Enrollments', d.active_enrollments, '')}
+        ${UI.statCard('Completion Rate', d.completion_rate + '%', '')}
+        ${UI.statCard('Avg Score', d.avg_score, '')}
       </div>
       <div class="grid grid-3 gap-md mb-md">
-        ${UI.statCard('Overdue', d.overdue, '\u26A0')}
-        ${UI.statCard('Completed', d.completed, '\u2713')}
-        ${UI.statCard('Expiring Certs', d.expiring_certifications, '\u23F0')}
+        ${UI.statCard('Overdue', d.overdue, '')}
+        ${UI.statCard('Completed', d.completed, '')}
+        ${UI.statCard('Expiring Certs', d.expiring_certifications, '')}
       </div>
       <div class="card">
         <div class="card-header flex items-center justify-between">

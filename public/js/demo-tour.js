@@ -20,7 +20,7 @@ const DemoTour = {
         target: null,
         route: 'dashboard',
         position: 'center',
-        icon: '\u25C8',
+        icon: '',
       },
 
       // ---- Dashboard ----
@@ -31,7 +31,7 @@ const DemoTour = {
         target: '#main-body',
         route: 'dashboard',
         position: 'top',
-        icon: '\u25A6',
+        icon: '',
       },
       {
         id: 'dashboard-sidebar',
@@ -40,7 +40,7 @@ const DemoTour = {
         target: '.sidebar-nav',
         route: 'dashboard',
         position: 'right',
-        icon: '\u2630',
+        icon: '',
       },
 
       // ---- POS Terminal ----
@@ -51,7 +51,7 @@ const DemoTour = {
         target: '#main-body',
         route: 'pos',
         position: 'top',
-        icon: '$',
+        icon: '',
       },
       {
         id: 'pos-workflow',
@@ -60,7 +60,7 @@ const DemoTour = {
         target: '#main-body',
         route: 'pos',
         position: 'top',
-        icon: '\u2192',
+        icon: '',
       },
 
       // ---- Kitchen Display ----
@@ -71,7 +71,7 @@ const DemoTour = {
         target: '#main-body',
         route: 'kitchen',
         position: 'top',
-        icon: '\u2615',
+        icon: '',
       },
 
       // ---- Floor Plan ----
@@ -82,7 +82,7 @@ const DemoTour = {
         target: '#main-body',
         route: 'floor',
         position: 'top',
-        icon: '\u25A3',
+        icon: '',
       },
 
       // ---- Menu Manager ----
@@ -93,7 +93,7 @@ const DemoTour = {
         target: '#main-body',
         route: 'menu',
         position: 'top',
-        icon: '\u2630',
+        icon: '',
       },
 
       // ---- Inventory ----
@@ -104,7 +104,7 @@ const DemoTour = {
         target: '#main-body',
         route: 'inventory',
         position: 'top',
-        icon: '\u25A4',
+        icon: '',
       },
       {
         id: 'inventory-recipes',
@@ -113,7 +113,7 @@ const DemoTour = {
         target: '#main-body',
         route: 'inventory',
         position: 'top',
-        icon: '\u25C8',
+        icon: '',
       },
 
       // ---- Suppliers ----
@@ -124,7 +124,7 @@ const DemoTour = {
         target: '#main-body',
         route: 'suppliers',
         position: 'top',
-        icon: '\u2192',
+        icon: '',
       },
 
       // ---- Supply Alerts ----
@@ -135,7 +135,7 @@ const DemoTour = {
         target: '#main-body',
         route: 'supply-alerts',
         position: 'top',
-        icon: '\u26A1',
+        icon: '',
       },
       {
         id: 'supply-alerts-approval',
@@ -144,7 +144,7 @@ const DemoTour = {
         target: '#main-body',
         route: 'supply-alerts',
         position: 'top',
-        icon: '\u2713',
+        icon: '',
       },
 
       // ---- Customers ----
@@ -155,7 +155,7 @@ const DemoTour = {
         target: '#main-body',
         route: 'customers',
         position: 'top',
-        icon: '\u2637',
+        icon: '',
       },
 
       // ---- Reservations ----
@@ -166,7 +166,7 @@ const DemoTour = {
         target: '#main-body',
         route: 'reservations',
         position: 'top',
-        icon: '\u2316',
+        icon: '',
       },
 
       // ---- Staff ----
@@ -177,7 +177,7 @@ const DemoTour = {
         target: '#main-body',
         route: 'staff',
         position: 'top',
-        icon: '\u2605',
+        icon: '',
       },
 
       // ---- Time Clock ----
@@ -188,7 +188,7 @@ const DemoTour = {
         target: '#main-body',
         route: 'timeclock',
         position: 'top',
-        icon: '\u23F0',
+        icon: '',
       },
 
       // ---- Scheduling ----
@@ -199,7 +199,7 @@ const DemoTour = {
         target: '#main-body',
         route: 'scheduling',
         position: 'top',
-        icon: '\u2750',
+        icon: '',
       },
 
       // ---- Analytics ----
@@ -210,7 +210,7 @@ const DemoTour = {
         target: '#main-body',
         route: 'analytics',
         position: 'top',
-        icon: '\u2197',
+        icon: '',
       },
 
       // ---- Reports ----
@@ -221,7 +221,7 @@ const DemoTour = {
         target: '#main-body',
         route: 'reports',
         position: 'top',
-        icon: '\u2261',
+        icon: '',
       },
 
       // ---- AI Assistant ----
@@ -232,7 +232,7 @@ const DemoTour = {
         target: '#main-body',
         route: 'ai',
         position: 'top',
-        icon: '\u25C8',
+        icon: '',
       },
 
       // ---- Notifications ----
@@ -243,7 +243,7 @@ const DemoTour = {
         target: '#main-body',
         route: 'notifications',
         position: 'top',
-        icon: '\u26A0',
+        icon: '',
       },
 
       // ---- Settings ----
@@ -254,7 +254,7 @@ const DemoTour = {
         target: '#main-body',
         route: 'settings',
         position: 'top',
-        icon: '\u2699',
+        icon: '',
       },
 
       // ---- Accounting ----
@@ -265,7 +265,7 @@ const DemoTour = {
         target: '#main-body',
         route: 'accounting',
         position: 'top',
-        icon: '\u2261',
+        icon: '',
       },
 
       // ---- Payroll ----
@@ -276,7 +276,7 @@ const DemoTour = {
         target: '#main-body',
         route: 'payroll',
         position: 'top',
-        icon: '\u2338',
+        icon: '',
       },
 
       // ---- AP Automation ----
@@ -287,7 +287,7 @@ const DemoTour = {
         target: '#main-body',
         route: 'ap',
         position: 'top',
-        icon: '\u2192',
+        icon: '',
       },
 
       // ---- Banking ----
@@ -298,7 +298,7 @@ const DemoTour = {
         target: '#main-body',
         route: 'banking',
         position: 'top',
-        icon: '\u2302',
+        icon: '',
       },
 
       // ---- Locations ----
@@ -309,7 +309,7 @@ const DemoTour = {
         target: '#main-body',
         route: 'locations',
         position: 'top',
-        icon: '\u2316',
+        icon: '',
       },
 
       // ---- Training ----
@@ -320,7 +320,7 @@ const DemoTour = {
         target: '#main-body',
         route: 'training',
         position: 'top',
-        icon: '\u2606',
+        icon: '',
       },
 
       // ---- Catering ----
@@ -331,7 +331,7 @@ const DemoTour = {
         target: '#main-body',
         route: 'catering',
         position: 'top',
-        icon: '\u2615',
+        icon: '',
       },
 
       // ---- Marketing ----
@@ -342,7 +342,7 @@ const DemoTour = {
         target: '#main-body',
         route: 'marketing',
         position: 'top',
-        icon: '\u2709',
+        icon: '',
       },
 
       // ---- Forecasting ----
@@ -353,7 +353,7 @@ const DemoTour = {
         target: '#main-body',
         route: 'forecasting',
         position: 'top',
-        icon: '\u2197',
+        icon: '',
       },
 
       // ---- Wrap Up ----
@@ -364,7 +364,7 @@ const DemoTour = {
         target: null,
         route: 'dashboard',
         position: 'center',
-        icon: '\u2605',
+        icon: '',
       },
     ];
   },
@@ -450,7 +450,7 @@ const DemoTour = {
       <div class="demo-panel-header">
         <div class="demo-panel-icon">${step.icon}</div>
         <div class="demo-panel-title">${step.title}</div>
-        <button class="demo-panel-close" onclick="DemoTour.stop(); App.exitDemo();" title="Exit Tour">\u2715</button>
+        <button class="demo-panel-close" onclick="DemoTour.stop(); App.exitDemo();" title="Exit Tour">X</button>
       </div>
       <div class="demo-panel-body">${step.body}</div>
       <div class="demo-panel-footer">

@@ -85,7 +85,7 @@ const InventoryModule = {
     }
   },
 
-  // ─── TAB 1: STOCK LEVELS ────────────────────────────────────────────
+  // --- TAB 1: STOCK LEVELS ------------------------------------------------
   async _renderStock(content) {
     const summary = this._cache.summary || await API.inventorySummary();
     const categories = this._cache.categories || await API.inventoryCategories();
@@ -112,9 +112,9 @@ const InventoryModule = {
 
     content.innerHTML = `
       <div class="grid grid-3 gap-md mb-md">
-        ${UI.statCard('Total Items', totalItems, '\u25A4')}
-        ${UI.statCard('Low Stock', lowStockCount, '\u26A0')}
-        ${UI.statCard('Inventory Value', Utils.currency(totalValue), '\u2234')}
+        ${UI.statCard('Total Items', totalItems, '')}
+        ${UI.statCard('Low Stock', lowStockCount, '')}
+        ${UI.statCard('Inventory Value', Utils.currency(totalValue), '')}
       </div>
       <div class="inv-toolbar flex items-center gap-sm mb-md">
         <input type="text" class="form-input search-box" placeholder="Search ingredients..."
@@ -154,14 +154,14 @@ const InventoryModule = {
       </div></div>`;
   },
 
-  // ─── TAB 2: LOW STOCK ───────────────────────────────────────────────
+  // --- TAB 2: LOW STOCK ---------------------------------------------------
   async _renderLowStock(content) {
     const items = await API.lowStock();
 
     content.innerHTML = `
       <div class="grid grid-2 gap-md mb-md">
-        ${UI.statCard('Items Below Par', items.length, '\u26A0')}
-        ${UI.statCard('Est. Restock Cost', Utils.currency(items.reduce((s, i) => s + ((i.par_level - i.total_quantity) * (i.cost_per_unit || 0)), 0)), '\u2234')}
+        ${UI.statCard('Items Below Par', items.length, '')}
+        ${UI.statCard('Est. Restock Cost', Utils.currency(items.reduce((s, i) => s + ((i.par_level - i.total_quantity) * (i.cost_per_unit || 0)), 0)), '')}
       </div>
       <div class="card"><div class="card-body" style="overflow-x:auto">
         ${UI.table(
@@ -193,7 +193,7 @@ const InventoryModule = {
       </div></div>`;
   },
 
-  // ─── TAB 3: EXPIRATION / FIFO ──────────────────────────────────────
+  // --- TAB 3: EXPIRATION / FIFO -------------------------------------------
   async _renderExpiry(content) {
     const isExpiring = this._expirySubView === 'expiring';
 
@@ -218,9 +218,9 @@ const InventoryModule = {
       const items = await API.expiringItems(this._expiryDays);
       body.innerHTML = `
         <div class="grid grid-3 gap-md mb-md">
-          ${UI.statCard('Expiring Items', items.length, '\u23F0')}
-          ${UI.statCard('Expired', items.filter(i => i.days_until_expiry <= 0).length, '\u2716')}
-          ${UI.statCard('At Risk Value', Utils.currency(items.reduce((s, i) => s + (i.quantity * (i.cost_per_unit || 0)), 0)), '\u2234')}
+          ${UI.statCard('Expiring Items', items.length, '')}
+          ${UI.statCard('Expired', items.filter(i => i.days_until_expiry <= 0).length, '')}
+          ${UI.statCard('At Risk Value', Utils.currency(items.reduce((s, i) => s + (i.quantity * (i.cost_per_unit || 0)), 0)), '')}
         </div>
         <div class="card"><div class="card-body" style="overflow-x:auto">
           ${UI.table(
@@ -287,15 +287,15 @@ const InventoryModule = {
     }
   },
 
-  // ─── TAB 4: RECIPES ────────────────────────────────────────────────
+  // --- TAB 4: RECIPES -----------------------------------------------------
   async _renderRecipes(content) {
     const recipes = await API.inventoryRecipes();
 
     content.innerHTML = `
       <div class="grid grid-3 gap-md mb-md">
-        ${UI.statCard('Menu Items', recipes.length, '\u2637')}
-        ${UI.statCard('Avg Food Cost %', (recipes.length ? (recipes.reduce((s, r) => s + (r.food_cost_percent || 0), 0) / recipes.length).toFixed(1) : 0) + '%', '\u2295')}
-        ${UI.statCard('Items > 35%', recipes.filter(r => r.food_cost_percent > 35).length, '\u26A0')}
+        ${UI.statCard('Menu Items', recipes.length, '')}
+        ${UI.statCard('Avg Food Cost %', (recipes.length ? (recipes.reduce((s, r) => s + (r.food_cost_percent || 0), 0) / recipes.length).toFixed(1) : 0) + '%', '')}
+        ${UI.statCard('Items > 35%', recipes.filter(r => r.food_cost_percent > 35).length, '')}
       </div>
       <div id="recipes-list"></div>`;
 
@@ -319,7 +319,7 @@ const InventoryModule = {
               <span class="text-sm">Price: ${Utils.currency(r.price)}</span>
               <span class="text-sm">Cost: ${Utils.currency(r.recipe_cost || r.cost)}</span>
               <span class="badge ${costCls}">${(r.food_cost_percent || 0).toFixed(1)}%</span>
-              <span class="text-muted">\u25BC</span>
+              <span class="text-muted"></span>
             </div>
           </div>
           <div class="card-body recipe-builder" id="recipe-${r.menu_item_id}" style="display:none">
@@ -379,7 +379,7 @@ const InventoryModule = {
               onchange="InventoryModule._updateRecipeRow(${menuItemId}, ${idx}, 'unit', this.value)">
           </div>
           <div class="text-sm font-medium" style="min-width:70px;text-align:right">${Utils.currency(lineCost)}</div>
-          <button class="btn btn-danger" style="padding:4px 8px" onclick="InventoryModule._removeRecipeRow(${menuItemId}, ${idx})">\u2716</button>
+          <button class="btn btn-danger" style="padding:4px 8px" onclick="InventoryModule._removeRecipeRow(${menuItemId}, ${idx})">X</button>
         </div>`;
     });
 
@@ -453,14 +453,14 @@ const InventoryModule = {
     }
   },
 
-  // ─── TAB 5: COUNT SHEETS ───────────────────────────────────────────
+  // --- TAB 5: COUNT SHEETS ------------------------------------------------
   async _renderCounts(content) {
     const counts = await API.inventoryCounts();
 
     content.innerHTML = `
       <div class="flex justify-between items-center mb-md">
         <div class="flex items-center gap-sm">
-          ${UI.statCard('Total Counts', counts.length, '\u2261')}
+          ${UI.statCard('Total Counts', counts.length, '')}
         </div>
         <button class="btn btn-primary" onclick="InventoryModule._startNewCount()">+ New Count</button>
       </div>
@@ -579,7 +579,7 @@ const InventoryModule = {
     await UI.modal(`Inventory Count #${countId}`, html, { size: 'xl', showCancel: false, confirmText: 'Close' });
   },
 
-  // ─── TAB 6: TRANSFERS ──────────────────────────────────────────────
+  // --- TAB 6: TRANSFERS ---------------------------------------------------
   async _renderTransfers(content) {
     const transfers = await API.stockTransfers();
     const pending = transfers.filter(t => t.status === 'pending');
@@ -590,9 +590,9 @@ const InventoryModule = {
     content.innerHTML = `
       <div class="flex justify-between items-center mb-md">
         <div class="grid grid-3 gap-md">
-          ${UI.statCard('Pending', pending.length, '\u21C4')}
-          ${UI.statCard('Completed', completed.length, '\u2714')}
-          ${UI.statCard('Rejected', rejected.length, '\u2716')}
+          ${UI.statCard('Pending', pending.length, '')}
+          ${UI.statCard('Completed', completed.length, '')}
+          ${UI.statCard('Rejected', rejected.length, '')}
         </div>
         <button class="btn btn-primary" onclick="InventoryModule._requestTransfer()">+ Request Transfer</button>
       </div>
@@ -727,7 +727,7 @@ const InventoryModule = {
     }
   },
 
-  // ─── TAB 7: WASTE LOG ──────────────────────────────────────────────
+  // --- TAB 7: WASTE LOG ---------------------------------------------------
   async _renderWaste(content) {
     const waste = await API.getWaste();
 
@@ -744,9 +744,9 @@ const InventoryModule = {
 
     content.innerHTML = `
       <div class="grid grid-3 gap-md mb-md">
-        ${UI.statCard('This Week', Utils.currency(weekCost), '\u26A0')}
-        ${UI.statCard('Total Waste Cost', Utils.currency(totalCost), '\u2234')}
-        ${UI.statCard('Top Reason', topReason, '\u2139')}
+        ${UI.statCard('This Week', Utils.currency(weekCost), '')}
+        ${UI.statCard('Total Waste Cost', Utils.currency(totalCost), '')}
+        ${UI.statCard('Top Reason', topReason, '')}
       </div>
       <div class="flex justify-between items-center mb-md">
         <span class="font-bold">${waste.length} waste entries</span>
@@ -771,7 +771,7 @@ const InventoryModule = {
       </div></div>`;
   },
 
-  // ─── TAB 8: FORECAST ───────��───────────────────────────────────────
+  // --- TAB 8: FORECAST -------------------------------------------------
   async _renderForecast(content) {
     const data = await API.inventoryForecast(7);
 
@@ -780,9 +780,9 @@ const InventoryModule = {
 
     content.innerHTML = `
       <div class="grid grid-3 gap-md mb-md">
-        ${UI.statCard('Items Tracked', data.length, '\u2637')}
-        ${UI.statCard('Need Reorder', reorderCount, '\u26A0')}
-        ${UI.statCard('Critical (3d)', criticalCount, '\u2716')}
+        ${UI.statCard('Items Tracked', data.length, '')}
+        ${UI.statCard('Need Reorder', reorderCount, '')}
+        ${UI.statCard('Critical (3d)', criticalCount, '')}
       </div>
       <div class="card"><div class="card-body" style="overflow-x:auto">
         ${UI.table(
@@ -805,7 +805,7 @@ const InventoryModule = {
       </div></div>`;
   },
 
-  // ─── TAB 9: REORDER ────────────────────────────────────────────────
+  // --- TAB 9: REORDER -----------------------------------------------------
   async _renderReorder(content) {
     const suggestions = await API.reorderSuggestions();
 
@@ -814,9 +814,9 @@ const InventoryModule = {
 
     content.innerHTML = `
       <div class="grid grid-3 gap-md mb-md">
-        ${UI.statCard('Suggestions', suggestions.length, '\u2637')}
-        ${UI.statCard('Critical', criticalCount, '\u26A0')}
-        ${UI.statCard('Est. Total Cost', Utils.currency(totalEstCost), '\u2234')}
+        ${UI.statCard('Suggestions', suggestions.length, '')}
+        ${UI.statCard('Critical', criticalCount, '')}
+        ${UI.statCard('Est. Total Cost', Utils.currency(totalEstCost), '')}
       </div>
       ${suggestions.length ? `<div class="grid grid-2 gap-md">
         ${suggestions.map(s => {
@@ -857,7 +857,7 @@ const InventoryModule = {
     UI.toast('Order Sent', `Order for ${qty} ${unit} of ${name}${supplier ? ' sent to ' + supplier : ''} has been submitted.`, 'success');
   },
 
-  // ─── MODALS ─────────────────────────────────────────────────────────
+  // --- MODALS ------------------------------------------------------------
 
   async addIngredient() {
     const [categories, suppliers] = await Promise.all([API.inventoryCategories(), API.suppliers()]);
@@ -1180,7 +1180,7 @@ const InventoryModule = {
             </div>
           </div>
           <span class="text-sm">${item.qty_sold > 0 ? item.qty_sold + ' units' : '--'}</span>
-          <span style="font-size:16px;opacity:.4">${isExpanded ? '\u25B2' : '\u25BC'}</span>
+          <span style="font-size:16px;opacity:.4">${isExpanded ? '' : ''}</span>
         </div>
         ${isExpanded ? this._renderProfitDetail(item) : ''}
       </div>
@@ -1268,7 +1268,7 @@ const InventoryModule = {
             <!-- AI Analysis Button -->
             <div style="margin-top:12px">
               <button class="profit-ai-btn" id="ai-btn-${item.id}" onclick="InventoryModule._analyzeItem(${item.id})">
-                \u25C8 AI Margin Analysis
+                AI Margin Analysis
               </button>
               <div id="ai-result-${item.id}"></div>
             </div>
@@ -1306,7 +1306,7 @@ const InventoryModule = {
     }
 
     btn.disabled = false;
-    btn.textContent = '\u25C8 AI Margin Analysis';
+    btn.textContent = 'AI Margin Analysis';
   },
 
   destroy() {

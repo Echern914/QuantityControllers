@@ -333,6 +333,14 @@ const API = {
   autoPopulateList(listId, segment) { return this.post(`/api/marketing/email-lists/${listId}/auto-populate`, { segment }); },
   marketingDashboard() { return this.get('/api/marketing/dashboard'); },
 
+  // Drink Deduction
+  ddStockCards() { return this.get('/api/drink-deduction/stock-cards'); },
+  ddIngredientDetail(id) { return this.get(`/api/drink-deduction/ingredient/${id}`); },
+  ddRecipes() { return this.get('/api/drink-deduction/recipes'); },
+  ddEndOfNight(date) { return this.get(`/api/drink-deduction/end-of-night${date ? '?date=' + date : ''}`); },
+  ddManualDeduct(data) { return this.post('/api/drink-deduction/manual', data); },
+  ddProcessCloverOrder(data) { return this.post('/api/drink-deduction/process-clover-order', data); },
+
   // Forecasting & Intelligence
   salesForecast(days) { return this.get(`/api/forecasting/sales?days_ahead=${days || 7}`); },
   forecastAccuracy() { return this.get('/api/forecasting/sales/accuracy'); },

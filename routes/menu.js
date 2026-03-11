@@ -17,6 +17,24 @@ router.post('/categories', (req, res) => {
   res.json({ id: result.lastInsertRowid, name, color, icon });
 });
 
+// PUT /api/menu/categories/:id
+router.put('/categories/:id', (req, res) => {
+  const { name, color, display_order } = req.body;
+  const db = getDb();
+  db.prepare(`UPDATE menu_categories SET name=?, color=?, display_order=? WHERE id=?`)
+    .run(name, color || '#6366f1', display_order || 0, req.params.id);
+  res.json({ success: true });
+});
+
+// DELETE /api/menu/categories/:id
+router.delete('/categories/:id', (req, res) => {
+  const db = getDb();
+  // Unlink items from this category
+  db.prepare(`UPDATE menu_items SET category_id = NULL WHERE category_id = ?`).run(req.params.id);
+  db.prepare(`UPDATE menu_categories SET active = 0 WHERE id = ?`).run(req.params.id);
+  res.json({ success: true });
+});
+
 // GET /api/menu/items
 router.get('/items', (req, res) => {
   const db = getDb();
@@ -116,6 +134,15 @@ router.post('/modifiers', (req, res) => {
   const db = getDb();
   const result = db.prepare(`INSERT INTO menu_modifiers (name, category, price_adjustment) VALUES (?, ?, ?)`).run(name, category, price_adjustment || 0);
   res.json({ id: result.lastInsertRowid });
+});
+
+// PUT /api/menu/modifiers/:id
+router.put('/modifiers/:id', (req, res) => {
+  const { name, category, price_adjustment } = req.body;
+  const db = getDb();
+  db.prepare(`UPDATE menu_modifiers SET name=?, category=?, price_adjustment=? WHERE id=?`)
+    .run(name, category || 'General', price_adjustment || 0, req.params.id);
+  res.json({ success: true });
 });
 
 // GET /api/menu/combos

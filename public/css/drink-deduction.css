@@ -1,0 +1,727 @@
+/* ============================================================
+   VENUECORE - DRINK RECIPE DEDUCTION STYLES
+   Card-based, dark mode, mobile-friendly
+   ============================================================ */
+
+/* ---- Layout ---- */
+.dd-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  padding: var(--space-lg);
+}
+
+.dd-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+}
+
+.dd-header__title {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.dd-header__actions {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.dd-stats-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-md);
+}
+
+/* ---- Stock Card Grid ---- */
+.dd-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-md);
+}
+
+/* ---- Individual Stock Card ---- */
+.dd-card {
+  position: relative;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  cursor: pointer;
+  transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
+  overflow: hidden;
+}
+
+.dd-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--border-light);
+}
+
+.dd-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+}
+
+.dd-card--good::before {
+  background: linear-gradient(90deg, var(--color-success), #059669);
+}
+
+.dd-card--low::before {
+  background: linear-gradient(90deg, var(--color-warning), #d97706);
+}
+
+.dd-card--critical::before {
+  background: linear-gradient(90deg, var(--color-danger), #dc2626);
+}
+
+.dd-card--critical {
+  border-color: rgba(239, 68, 68, 0.3);
+  animation: dd-pulse-critical 2s ease-in-out infinite;
+}
+
+@keyframes dd-pulse-critical {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.2); }
+  50% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.15); }
+}
+
+.dd-card--low {
+  border-color: rgba(245, 158, 11, 0.25);
+}
+
+.dd-card__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--space-md);
+}
+
+.dd-card__name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.dd-card__category {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.dd-card__status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.dd-card__status-dot--good {
+  background: var(--color-success);
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.5);
+}
+
+.dd-card__status-dot--low {
+  background: var(--color-warning);
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.5);
+  animation: dd-dot-pulse 2s ease-in-out infinite;
+}
+
+.dd-card__status-dot--critical {
+  background: var(--color-danger);
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+  animation: dd-dot-pulse-danger 1.5s ease-in-out infinite;
+}
+
+@keyframes dd-dot-pulse {
+  0%, 100% { box-shadow: 0 0 4px rgba(245, 158, 11, 0.5); }
+  50% { box-shadow: 0 0 12px rgba(245, 158, 11, 0.3); }
+}
+
+@keyframes dd-dot-pulse-danger {
+  0%, 100% { box-shadow: 0 0 6px rgba(239, 68, 68, 0.6); }
+  50% { box-shadow: 0 0 16px rgba(239, 68, 68, 0.3); }
+}
+
+/* ---- Main Quantity Display ---- */
+.dd-card__qty {
+  text-align: center;
+  margin-bottom: var(--space-md);
+  padding: var(--space-md) 0;
+}
+
+.dd-card__qty-value {
+  font-size: 36px;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  line-height: 1;
+  letter-spacing: -1px;
+}
+
+.dd-card__qty-value--good { color: var(--color-success); }
+.dd-card__qty-value--low { color: var(--color-warning); }
+.dd-card__qty-value--critical { color: var(--color-danger); }
+
+.dd-card__qty-unit {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-left: 4px;
+}
+
+.dd-card__qty-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 4px;
+}
+
+/* ---- Stock Bar ---- */
+.dd-card__bar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-elevated);
+  overflow: hidden;
+  margin-bottom: var(--space-md);
+}
+
+.dd-card__bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 600ms cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+
+.dd-card__bar-fill--good { background: var(--color-success); }
+.dd-card__bar-fill--low { background: var(--color-warning); }
+.dd-card__bar-fill--critical { background: var(--color-danger); }
+
+/* ---- Card Meta Row ---- */
+.dd-card__meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-xs);
+}
+
+.dd-card__meta-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.dd-card__meta-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.dd-card__meta-value {
+  font-size: 13px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+
+/* ---- Deduction Animation ---- */
+.dd-card__deduct-flash {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(99, 102, 241, 0.15) 0%, transparent 100%);
+  pointer-events: none;
+  opacity: 0;
+  border-radius: var(--radius-lg);
+}
+
+.dd-card--deducting .dd-card__deduct-flash {
+  animation: dd-deduct-flash 1s ease-out forwards;
+}
+
+@keyframes dd-deduct-flash {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.dd-card--deducting .dd-card__qty-value {
+  animation: dd-qty-bounce 500ms ease-out;
+}
+
+@keyframes dd-qty-bounce {
+  0% { transform: scale(1); }
+  30% { transform: scale(0.9); color: var(--accent-primary); }
+  60% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+/* ---- Deduction Toast (floating) ---- */
+.dd-deduct-toast {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(99, 102, 241, 0.9);
+  color: white;
+  padding: 6px 16px;
+  border-radius: var(--radius-full);
+  font-size: 13px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  pointer-events: none;
+  z-index: 10;
+  white-space: nowrap;
+  animation: dd-toast-float 1.5s ease-out forwards;
+}
+
+@keyframes dd-toast-float {
+  0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  50% { opacity: 1; transform: translate(-50%, -80%) scale(1.1); }
+  100% { opacity: 0; transform: translate(-50%, -120%) scale(0.9); }
+}
+
+/* ---- Detail Panel (Modal) ---- */
+.dd-detail {
+  max-width: 600px;
+}
+
+.dd-detail__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-lg);
+}
+
+.dd-detail__qty-big {
+  font-size: 42px;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  line-height: 1;
+}
+
+.dd-detail__qty-big--good { color: var(--color-success); }
+.dd-detail__qty-big--low { color: var(--color-warning); }
+.dd-detail__qty-big--critical { color: var(--color-danger); }
+
+.dd-detail__section {
+  margin-bottom: var(--space-lg);
+}
+
+.dd-detail__section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: var(--space-sm);
+  padding-bottom: var(--space-xs);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.dd-detail__drinks-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.dd-detail__drink-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-elevated);
+  border-radius: var(--radius-sm);
+}
+
+.dd-detail__drink-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.dd-detail__drink-qty {
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+}
+
+.dd-detail__drink-count {
+  font-size: 14px;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  padding: 2px 10px;
+  border-radius: var(--radius-full);
+  background: var(--bg-hover);
+}
+
+.dd-detail__drink-count--good { color: var(--color-success); }
+.dd-detail__drink-count--low { color: var(--color-warning); }
+.dd-detail__drink-count--zero { color: var(--color-danger); background: rgba(239, 68, 68, 0.15); }
+
+.dd-detail__history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 13px;
+}
+
+.dd-detail__history-item:last-child {
+  border-bottom: none;
+}
+
+.dd-detail__history-drink {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.dd-detail__history-amount {
+  font-family: var(--font-mono);
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+.dd-detail__history-time {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.dd-detail__restock-info {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  background: var(--bg-elevated);
+  border-radius: var(--radius-md);
+}
+
+.dd-detail__restock-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.dd-detail__restock-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+}
+
+/* ---- End of Night Summary ---- */
+.dd-eon {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.dd-eon__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--space-md);
+}
+
+.dd-eon__stat {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: var(--space-lg);
+  text-align: center;
+}
+
+.dd-eon__stat-value {
+  font-size: 28px;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.dd-eon__stat-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 4px;
+}
+
+.dd-eon__variance-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--color-danger);
+}
+
+/* ---- Sub-views (tabs) ---- */
+.dd-tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 2px solid var(--border-color);
+  margin-bottom: var(--space-lg);
+  overflow-x: auto;
+}
+
+.dd-tab {
+  padding: var(--space-sm) var(--space-lg);
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  position: relative;
+  white-space: nowrap;
+  font-family: inherit;
+  transition: color 150ms ease;
+}
+
+.dd-tab::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: transparent;
+  transition: background 150ms ease;
+}
+
+.dd-tab:hover { color: var(--text-secondary); }
+
+.dd-tab--active {
+  color: var(--accent-primary);
+}
+
+.dd-tab--active::after {
+  background: var(--accent-primary);
+}
+
+.dd-tab__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  margin-left: 6px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+}
+
+.dd-tab__badge--danger {
+  background: var(--color-danger);
+  color: white;
+}
+
+.dd-tab__badge--warning {
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+}
+
+/* ---- Recipe Builder Cards ---- */
+.dd-recipe-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: var(--space-lg);
+  transition: border-color 200ms ease;
+}
+
+.dd-recipe-card:hover {
+  border-color: var(--border-light);
+}
+
+.dd-recipe-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--space-md);
+}
+
+.dd-recipe-card__name {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.dd-recipe-card__can-make {
+  font-size: 13px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+}
+
+.dd-recipe-card__can-make--good {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.dd-recipe-card__can-make--low {
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+}
+
+.dd-recipe-card__can-make--zero {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+.dd-recipe-card__ingredients {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.dd-recipe-card__ing-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 13px;
+}
+
+.dd-recipe-card__ing-row + .dd-recipe-card__ing-row {
+  border-top: 1px solid var(--border-color);
+}
+
+.dd-recipe-card__ing-name {
+  color: var(--text-secondary);
+}
+
+.dd-recipe-card__ing-qty {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.dd-recipe-card__footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: var(--space-md);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--border-color);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.dd-recipe-card__cost {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* ---- Live indicator ---- */
+.dd-live-dot {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-success);
+}
+
+.dd-live-dot::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-success);
+  animation: dd-live-blink 1.5s ease-in-out infinite;
+}
+
+@keyframes dd-live-blink {
+  0%, 100% { opacity: 1; box-shadow: 0 0 4px rgba(16, 185, 129, 0.6); }
+  50% { opacity: 0.4; box-shadow: 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+/* ---- Search / Filter ---- */
+.dd-search {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.dd-search__input {
+  padding: 8px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+  min-width: 200px;
+  transition: border-color 150ms ease;
+}
+
+.dd-search__input:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.dd-search__select {
+  padding: 8px 30px 8px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-family: inherit;
+  appearance: none;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2394a3b8' d='M3 5l3 3 3-3'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 768px) {
+  .dd-page { padding: var(--space-md); }
+  .dd-grid { grid-template-columns: 1fr; }
+  .dd-card__qty-value { font-size: 28px; }
+  .dd-header { flex-direction: column; align-items: flex-start; }
+  .dd-search { flex-direction: column; width: 100%; }
+  .dd-search__input { min-width: auto; width: 100%; }
+}
+
+@media (max-width: 480px) {
+  .dd-stats-row { grid-template-columns: repeat(2, 1fr); }
+  .dd-card { padding: var(--space-md); }
+}
+
+/* ---- Reduce Motion ---- */
+@media (prefers-reduced-motion: reduce) {
+  .dd-card--critical,
+  .dd-card__status-dot--low,
+  .dd-card__status-dot--critical,
+  .dd-live-dot::before {
+    animation: none;
+  }
+  .dd-card--deducting .dd-card__deduct-flash,
+  .dd-card--deducting .dd-card__qty-value,
+  .dd-deduct-toast {
+    animation: none;
+  }
+  .dd-card__bar-fill {
+    transition: none;
+  }
+}

@@ -1376,6 +1376,76 @@ function initializeSchema() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
+    -- ============================================================
+    -- CLOVER APP MARKET INTEGRATION (Multi-Tenant)
+    -- ============================================================
+    CREATE TABLE IF NOT EXISTS clover_merchants (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      merchant_id TEXT NOT NULL UNIQUE,
+      merchant_name TEXT,
+      access_token TEXT NOT NULL,
+      refresh_token TEXT,
+      token_expires_at DATETIME,
+      environment TEXT DEFAULT 'sandbox',
+      status TEXT DEFAULT 'active',
+      scopes TEXT DEFAULT '[]',
+      installed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      last_sync_at DATETIME,
+      sync_config TEXT DEFAULT '{"menu":true,"orders":true,"payments":true,"inventory":true}',
+      metadata TEXT DEFAULT '{}',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_clover_merchant_id ON clover_merchants(merchant_id);
+
+    CREATE TABLE IF NOT EXISTS clover_sync_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      merchant_id TEXT NOT NULL,
+      sync_type TEXT NOT NULL,
+      direction TEXT DEFAULT 'push',
+      entity_type TEXT NOT NULL,
+      entity_id TEXT,
+      local_id INTEGER,
+      clover_id TEXT,
+      status TEXT DEFAULT 'pending',
+      error_message TEXT,
+      request_payload TEXT,
+      response_payload TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (merchant_id) REFERENCES clover_merchants(merchant_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_clover_sync_merchant ON clover_sync_log(merchant_id);
+    CREATE INDEX IF NOT EXISTS idx_clover_sync_status ON clover_sync_log(status);
+
+    CREATE TABLE IF NOT EXISTS clover_webhooks (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      merchant_id TEXT NOT NULL,
+      webhook_id TEXT,
+      event_type TEXT NOT NULL,
+      payload TEXT,
+      processed INTEGER DEFAULT 0,
+      processed_at DATETIME,
+      error_message TEXT,
+      received_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (merchant_id) REFERENCES clover_merchants(merchant_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_clover_webhooks_merchant ON clover_webhooks(merchant_id);
+
+    CREATE TABLE IF NOT EXISTS clover_id_map (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      merchant_id TEXT NOT NULL,
+      entity_type TEXT NOT NULL,
+      local_id INTEGER NOT NULL,
+      clover_id TEXT NOT NULL,
+      last_synced_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (merchant_id) REFERENCES clover_merchants(merchant_id),
+      UNIQUE(merchant_id, entity_type, local_id),
+      UNIQUE(merchant_id, entity_type, clover_id)
+    );
+
     CREATE TABLE IF NOT EXISTS anomaly_log (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       anomaly_type TEXT NOT NULL,

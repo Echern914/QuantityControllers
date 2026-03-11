@@ -3,7 +3,7 @@ const CustomersModule = {
     const customers = await API.customers();
     container.innerHTML = `<div class="animate-fade">
       <div class="flex justify-between items-center mb-md">
-        <div class="search-box" style="width:300px"><span class="search-icon">\u2315</span><input class="form-input" placeholder="Search customers..." id="cust-search" oninput="CustomersModule.search(this.value)"></div>
+        <div class="search-box" style="width:300px"><span class="search-icon"></span><input class="form-input" placeholder="Search customers..." id="cust-search" oninput="CustomersModule.search(this.value)"></div>
         <div class="flex gap-sm">
           <button class="btn btn-primary" onclick="CustomersModule.addCustomer()">+ Add Customer</button>
           <button class="btn btn-secondary" onclick="CustomersModule.showBirthdays()">Birthdays</button>
@@ -55,7 +55,7 @@ const CustomersModule = {
     const c = await API.customer(id);
     const html = `
       <div class="grid grid-3 gap-md mb-md">
-        ${UI.statCard('Loyalty Points', c.loyalty_points.toLocaleString(), '\u2606')}
+        ${UI.statCard('Loyalty Points', c.loyalty_points.toLocaleString(), '')}
         ${UI.statCard('Total Visits', c.total_visits, '#')}
         ${UI.statCard('Total Spent', Utils.currency(c.total_spent), '$')}
       </div>

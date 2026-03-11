@@ -41,7 +41,7 @@ const BankingModule = {
     el.innerHTML = `
       <div class="grid grid-3 gap-md mb-md">
         ${UI.statCard('Total Balance', Utils.currency(d.total_balance || 0), '$')}
-        ${UI.statCard('Unreconciled', d.unreconciled_transactions || 0, '\u2260')}
+        ${UI.statCard('Unreconciled', d.unreconciled_transactions || 0, '')}
         ${UI.statCard('Unmatched', d.unmatched_transactions || 0, '?')}
       </div>
       <div class="card">

@@ -30,18 +30,18 @@ const Dashboard = {
         <div class="grid grid-4 gap-md mb-md">
           ${UI.statCard("Today's Sales", Utils.currency(realtime.today_sales), '$')}
           ${UI.statCard('Orders', realtime.today_orders, '#')}
-          ${UI.statCard('Avg Check', Utils.currency(realtime.avg_check), '\u00F8')}
+          ${UI.statCard('Avg Check', Utils.currency(realtime.avg_check), '')}
           ${UI.statCard('COGS %', Utils.percent(cogsPercent), '%',
             cogsPercent > 35 ? 'high' : cogsPercent > 28 ? 'mid' : 'low')}
         </div>
 
         <!-- ====== SECOND STATS ROW ====== -->
         <div class="grid grid-4 gap-md mb-md">
-          ${UI.statCard('Open Orders', realtime.open_orders, '\u25A3',
+          ${UI.statCard('Open Orders', realtime.open_orders, '',
             realtime.open_orders > 10 ? 'high' : null)}
-          ${UI.statCard('Tables', realtime.tables_occupied + '/' + realtime.tables_total, '\u25A6')}
-          ${UI.statCard('Staff On', realtime.staff_clocked_in, '\u2605')}
-          ${UI.statCard('Kitchen Queue', realtime.kitchen_queue, '\u2615',
+          ${UI.statCard('Tables', realtime.tables_occupied + '/' + realtime.tables_total, '')}
+          ${UI.statCard('Staff On', realtime.staff_clocked_in, '')}
+          ${UI.statCard('Kitchen Queue', realtime.kitchen_queue, '',
             realtime.kitchen_queue > 8 ? 'high' : null)}
         </div>
 
@@ -145,11 +145,11 @@ const Dashboard = {
               <div class="card-body">
                 <div class="grid grid-3 gap-sm">
                   ${this._renderQuickAction('New Order', 'pos', '$', 'primary')}
-                  ${this._renderQuickAction('Floor Plan', 'floor', '\u25A6', 'secondary')}
-                  ${this._renderQuickAction('Kitchen', 'kitchen', '\u2615', 'secondary')}
-                  ${this._renderQuickAction('Reservations', 'reservations', '\u2316', 'secondary')}
-                  ${this._renderQuickAction('Inventory', 'inventory', '\u25A4', 'secondary')}
-                  ${this._renderQuickAction('AI Assistant', 'ai', '\u25C8', 'secondary')}
+                  ${this._renderQuickAction('Floor Plan', 'floor', '', 'secondary')}
+                  ${this._renderQuickAction('Kitchen', 'kitchen', '', 'secondary')}
+                  ${this._renderQuickAction('Reservations', 'reservations', '', 'secondary')}
+                  ${this._renderQuickAction('Inventory', 'inventory', '', 'secondary')}
+                  ${this._renderQuickAction('AI Assistant', 'ai', '', 'secondary')}
                 </div>
               </div>
             </div>
@@ -162,11 +162,11 @@ const Dashboard = {
               </div>
               <div class="card-body" style="max-height:180px;overflow-y:auto">
                 ${alerts.length === 0
-                  ? '<p class="text-muted text-sm" style="text-align:center;padding:20px 0">All clear — no active alerts</p>'
+                  ? '<p class="text-muted text-sm" style="text-align:center;padding:20px 0">All clear - no active alerts</p>'
                   : alerts.map(a => `
                     <div class="flex items-center gap-sm" style="padding:8px 4px;border-bottom:1px solid var(--border-color,#eee)">
                       <span class="dash-alert-icon dash-alert-${a.severity}">
-                        ${a.severity === 'critical' ? '\u2716' : a.severity === 'high' ? '\u26A0' : '\u25CF'}
+                        ${a.severity === 'critical' ? 'CRIT' : a.severity === 'high' ? 'HIGH' : 'MED'}
                       </span>
                       <div style="flex:1;min-width:0">
                         <div class="text-sm font-bold" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
@@ -220,7 +220,7 @@ const Dashboard = {
     }
   },
 
-  // ── Private rendering helpers ──────────────────────────────
+  // -- Private rendering helpers -------------------------------------------
 
   _renderInlineStyles() {
     return `
@@ -321,7 +321,7 @@ const Dashboard = {
 
     const legend = `
       <div class="flex items-center gap-md" style="padding:8px 0 0;font-size:11px;opacity:.6">
-        <span>\u25A0 Solid = Cost &nbsp; \u25A1 Light = Revenue</span>
+        <span>Solid = Cost, Light = Revenue</span>
       </div>
     `;
 

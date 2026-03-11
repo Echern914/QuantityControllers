@@ -12,7 +12,7 @@ const UI = {
       document.body.appendChild(this._toastContainer);
     }
 
-    const icons = { success: '\u2713', warning: '\u26A0', danger: '\u2717', info: '\u2139' };
+    const icons = { success: 'OK', warning: '!!', danger: 'X', info: 'i' };
     const toast = document.createElement('div');
     toast.className = `toast toast-${type} animate-slide`;
     toast.innerHTML = `
@@ -21,7 +21,7 @@ const UI = {
         <div class="toast-title">${Utils.escapeHtml(title)}</div>
         ${message ? `<div class="toast-message">${Utils.escapeHtml(message)}</div>` : ''}
       </div>
-      <button class="toast-close" onclick="this.closest('.toast').remove()">\u00D7</button>
+      <button class="toast-close" onclick="this.closest('.toast').remove()">X</button>
     `;
     this._toastContainer.appendChild(toast);
     setTimeout(() => toast.remove(), 5000);
@@ -38,7 +38,7 @@ const UI = {
         <div class="modal ${sizeClass}">
           <div class="modal-header">
             <h3>${Utils.escapeHtml(title)}</h3>
-            <button class="modal-close" data-action="close">\u00D7</button>
+            <button class="modal-close" data-action="close">X</button>
           </div>
           <div class="modal-body">${contentHtml}</div>
           ${options.footer !== false ? `

@@ -45,9 +45,9 @@ const PayrollModule = {
     el.innerHTML = `
       <div class="grid grid-4 gap-md mb-md">
         ${UI.statCard('Total Gross Pay', Utils.currency(s.total_gross || 0), '$')}
-        ${UI.statCard('Total Net Pay', Utils.currency(s.total_net || 0), '\u2713')}
-        ${UI.statCard('Total Deductions', Utils.currency(s.total_deductions || 0), '\u2212')}
-        ${UI.statCard('Total Tips', Utils.currency(s.total_tips || 0), '\u2605')}
+        ${UI.statCard('Total Net Pay', Utils.currency(s.total_net || 0), '')}
+        ${UI.statCard('Total Deductions', Utils.currency(s.total_deductions || 0), '')}
+        ${UI.statCard('Total Tips', Utils.currency(s.total_tips || 0), '')}
       </div>
       <div class="grid grid-2 gap-md">
         <div class="card">

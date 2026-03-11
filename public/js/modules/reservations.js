@@ -6,9 +6,9 @@ const ReservationsModule = {
     container.innerHTML = `<div class="animate-fade">
       <div class="flex justify-between items-center mb-md">
         <div class="flex items-center gap-md">
-          <button class="btn btn-ghost" onclick="ReservationsModule.changeDate(-1)">\u25C0</button>
+          <button class="btn btn-ghost" onclick="ReservationsModule.changeDate(-1)"><</button>
           <input type="date" class="form-input" value="${this.selectedDate}" onchange="ReservationsModule.selectedDate=this.value; ReservationsModule.render(document.getElementById('main-body'))" style="width:180px">
-          <button class="btn btn-ghost" onclick="ReservationsModule.changeDate(1)">\u25B6</button>
+          <button class="btn btn-ghost" onclick="ReservationsModule.changeDate(1)">></button>
           <button class="btn btn-ghost btn-sm" onclick="ReservationsModule.selectedDate='${Utils.today()}'; ReservationsModule.render(document.getElementById('main-body'))">Today</button>
         </div>
         <button class="btn btn-primary" onclick="ReservationsModule.addReservation()">+ New Reservation</button>

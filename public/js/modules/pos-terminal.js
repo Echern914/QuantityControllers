@@ -14,7 +14,7 @@ const POSTerminal = {
         <div class="pos-categories" id="pos-categories"></div>
         <div class="pos-search">
           <div class="search-box">
-            <span class="search-icon">\u2315</span>
+            <span class="search-icon"></span>
             <input type="text" class="form-input" placeholder="Search menu..." id="pos-search" oninput="POSTerminal.onSearch(this.value)">
           </div>
         </div>
@@ -228,15 +228,15 @@ const POSTerminal = {
           <div class="pay-label">Cash</div>
         </button>
         <button class="payment-method-btn" onclick="POSTerminal.processPayment('card')" id="pay-card">
-          <div class="pay-icon">\u25A1</div>
+          <div class="pay-icon">Card</div>
           <div class="pay-label">Card</div>
         </button>
         <button class="payment-method-btn" onclick="POSTerminal.splitPayment()">
-          <div class="pay-icon">\u2702</div>
+          <div class="pay-icon">Split</div>
           <div class="pay-label">Split</div>
         </button>
         <button class="payment-method-btn" onclick="POSTerminal.openTabForOrder()">
-          <div class="pay-icon">\u2261</div>
+          <div class="pay-icon">Tab</div>
           <div class="pay-label">Tab</div>
         </button>
       </div>

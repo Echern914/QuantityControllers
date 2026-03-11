@@ -66,7 +66,7 @@ const App = {
           <div class="demo-section">
             <div class="demo-section-label">First time here?</div>
             <button class="demo-start-btn" onclick="App.startDemo()">
-              <span class="demo-play-icon">\u25B6</span>
+              <span class="demo-play-icon">></span>
               <span>Try Interactive Demo</span>
             </button>
           </div>
@@ -117,7 +117,7 @@ const App = {
     const btn = document.querySelector('.demo-start-btn');
     if (btn) {
       btn.disabled = true;
-      btn.innerHTML = '<span class="demo-play-icon">\u25F4</span><span>Loading demo data...</span>';
+      btn.innerHTML = '<span class="demo-play-icon">...</span><span>Loading demo data...</span>';
     }
 
     try {
@@ -132,7 +132,7 @@ const App = {
     } catch (err) {
       if (btn) {
         btn.disabled = false;
-        btn.innerHTML = '<span class="demo-play-icon">\u25B6</span><span>Try Interactive Demo</span>';
+        btn.innerHTML = '<span class="demo-play-icon">></span><span>Try Interactive Demo</span>';
       }
       const errEl = document.getElementById('login-error');
       if (errEl) errEl.textContent = 'Failed to start demo: ' + err.message;
@@ -215,7 +215,7 @@ const App = {
               <div class="sidebar-user-name">${Utils.escapeHtml(this.employee.firstName)} ${Utils.escapeHtml(this.employee.lastName || '')}</div>
               <div class="sidebar-user-role">${Utils.escapeHtml(this.employee.role)}</div>
             </div>
-            <button class="sidebar-logout" onclick="${this.demoMode ? 'App.exitDemo()' : 'App.logout()'}" title="${this.demoMode ? 'Exit Demo' : 'Logout'}">\u23FB</button>
+            <button class="sidebar-logout" onclick="${this.demoMode ? 'App.exitDemo()' : 'App.logout()'}" title="${this.demoMode ? 'Exit Demo' : 'Logout'}">OUT</button>
           </div>
         </div>
       </div>
@@ -265,11 +265,11 @@ const App = {
       {
         title: 'Operations',
         items: [
-          { route: 'dashboard', label: 'Dashboard', icon: '\u25A6' },
-          { route: 'pos', label: 'POS Terminal', icon: '$' },
-          { route: 'kitchen', label: 'Kitchen', icon: '\u2615', badgeId: 'badge-kitchen' },
-          { route: 'floor', label: 'Floor Plan', icon: '\u25A3' },
-          { route: 'timeclock', label: 'Time Clock', icon: '\u23F0' },
+          { route: 'dashboard', label: 'Dashboard', icon: '' },
+          { route: 'pos', label: 'POS Terminal', icon: '' },
+          { route: 'kitchen', label: 'Kitchen', icon: '', badgeId: 'badge-kitchen' },
+          { route: 'floor', label: 'Floor Plan', icon: '' },
+          { route: 'timeclock', label: 'Time Clock', icon: '' },
         ]
       },
     ];
@@ -280,53 +280,55 @@ const App = {
         {
           title: 'Management',
           items: [
-            { route: 'menu', label: 'Menu Manager', icon: '\u2630' },
-            { route: 'inventory', label: 'Inventory', icon: '\u25A4', badgeId: 'badge-inventory' },
-            { route: 'supply-alerts', label: 'Supply Alerts', icon: '\u26A1', badgeId: 'badge-reorder' },
-            { route: 'suppliers', label: 'Suppliers', icon: '\u2192' },
-            { route: 'customers', label: 'Customers', icon: '\u2637' },
-            { route: 'reservations', label: 'Reservations', icon: '\u2316' },
+            { route: 'menu', label: 'Menu Manager', icon: '' },
+            { route: 'drink-deduction', label: 'Recipe Deduction', icon: '' },
+            { route: 'inventory', label: 'Inventory', icon: '', badgeId: 'badge-inventory' },
+            { route: 'supply-alerts', label: 'Supply Alerts', icon: '', badgeId: 'badge-reorder' },
+            { route: 'suppliers', label: 'Suppliers', icon: '' },
+            { route: 'customers', label: 'Customers', icon: '' },
+            { route: 'reservations', label: 'Reservations', icon: '' },
           ]
         },
         {
           title: 'Team',
           items: [
-            { route: 'staff', label: 'Staff', icon: '\u2605' },
-            { route: 'scheduling', label: 'Schedule', icon: '\u2750' },
+            { route: 'staff', label: 'Staff', icon: '' },
+            { route: 'scheduling', label: 'Schedule', icon: '' },
           ]
         },
         {
           title: 'Insights',
           items: [
-            { route: 'analytics', label: 'Analytics', icon: '\u2197' },
-            { route: 'reports', label: 'Reports', icon: '\u2261' },
-            { route: 'ai', label: 'AI Assistant', icon: '\u25C8' },
+            { route: 'analytics', label: 'Analytics', icon: '' },
+            { route: 'reports', label: 'Reports', icon: '' },
+            { route: 'ai', label: 'AI Assistant', icon: '' },
           ]
         },
         {
           title: 'Finance',
           items: [
-            { route: 'accounting', label: 'Accounting', icon: '\u2261' },
-            { route: 'payroll', label: 'Payroll', icon: '\u2338' },
-            { route: 'ap', label: 'AP Automation', icon: '\u2192' },
-            { route: 'banking', label: 'Banking', icon: '\u2302' },
+            { route: 'accounting', label: 'Accounting', icon: '' },
+            { route: 'payroll', label: 'Payroll', icon: '' },
+            { route: 'ap', label: 'AP Automation', icon: '' },
+            { route: 'banking', label: 'Banking', icon: '' },
           ]
         },
         {
           title: 'Business',
           items: [
-            { route: 'locations', label: 'Locations', icon: '\u2316' },
-            { route: 'training', label: 'Training', icon: '\u2606' },
-            { route: 'catering', label: 'Catering', icon: '\u2615' },
-            { route: 'marketing', label: 'Marketing', icon: '\u2709' },
-            { route: 'forecasting', label: 'Forecasting', icon: '\u2197' },
+            { route: 'locations', label: 'Locations', icon: '' },
+            { route: 'training', label: 'Training', icon: '' },
+            { route: 'catering', label: 'Catering', icon: '' },
+            { route: 'marketing', label: 'Marketing', icon: '' },
+            { route: 'forecasting', label: 'Forecasting', icon: '' },
+            { route: 'clover', label: 'Clover', icon: '' },
           ]
         },
         {
           title: 'System',
           items: [
-            { route: 'notifications', label: 'Alerts', icon: '\u26A0', badgeId: 'badge-alerts' },
-            { route: 'settings', label: 'Settings', icon: '\u2699' },
+            { route: 'notifications', label: 'Alerts', icon: '', badgeId: 'badge-alerts' },
+            { route: 'settings', label: 'Settings', icon: '' },
           ]
         },
       );
@@ -335,7 +337,7 @@ const App = {
       sections.push({
         title: 'System',
         items: [
-          { route: 'notifications', label: 'Alerts', icon: '\u26A0', badgeId: 'badge-alerts' },
+          { route: 'notifications', label: 'Alerts', icon: '', badgeId: 'badge-alerts' },
         ]
       });
     }
@@ -370,6 +372,7 @@ const App = {
       kitchen: { title: 'Kitchen Display', module: KitchenDisplay, nopad: true },
       floor: { title: 'Floor Plan', module: FloorPlan, nopad: true },
       menu: { title: 'Menu Manager', module: MenuManager },
+      'drink-deduction': { title: 'Recipe Deduction', module: DrinkDeductionModule, nopad: true },
       inventory: { title: 'Inventory', module: InventoryModule },
       'supply-alerts': { title: 'Supply Alerts', module: SupplyAlertsModule },
       suppliers: { title: 'Suppliers', module: SuppliersModule },
@@ -392,6 +395,7 @@ const App = {
       catering: { title: 'Catering', module: CateringModule },
       marketing: { title: 'Marketing', module: MarketingModule },
       forecasting: { title: 'Forecasting', module: ForecastingModule },
+      clover: { title: 'Clover Integration', module: CloverModule },
     };
 
     const page = modules[route] || modules.dashboard;
@@ -464,6 +468,12 @@ const App = {
       case 'reorder_request':
         UI.toast('Restock Needed', `${data.request.ingredient_name} - ${data.request.urgency}`, data.request.urgency === 'critical' ? 'danger' : 'warning');
         this.updateReorderBadge();
+        break;
+      case 'stock_deduction':
+        UI.toast('Stock Deducted', `Order ${data.order_number}: ${data.deductions?.length || 0} ingredients updated`, 'info');
+        if (this.currentModule === DrinkDeductionModule) {
+          DrinkDeductionModule.handleStockDeduction(data);
+        }
         break;
       case 'reorder_approved':
       case 'reorder_bulk_approved':

@@ -5,6 +5,7 @@ const path = require('path');
 const { initializeSchema } = require('./db/schema');
 const { errorHandler } = require('./middleware/errorHandler');
 const { startMonitor, setBroadcast } = require('./services/supply-monitor');
+const cloverOrderSync = require('./services/clover-order-sync');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -57,6 +58,8 @@ app.use('/api/catering', require('./routes/catering'));
 app.use('/api/marketing', require('./routes/marketing'));
 app.use('/api/forecasting', require('./routes/forecasting'));
 app.use('/api/reorder', require('./routes/reorder'));
+app.use('/api/clover', require('./routes/clover'));
+app.use('/api/drink-deduction', require('./routes/drink-deduction'));
 
 // SSE endpoint
 app.get('/api/events', (req, res) => {
@@ -83,6 +86,10 @@ initializeSchema();
 // Start supply monitor (checks inventory every 15 minutes)
 setBroadcast(broadcast);
 startMonitor(15);
+
+// Start Clover order sync (polls every 10 seconds for new orders)
+cloverOrderSync.setBroadcast(broadcast);
+cloverOrderSync.startPolling(10);
 
 app.listen(PORT, () => {
   console.log(`

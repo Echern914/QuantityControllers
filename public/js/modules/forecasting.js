@@ -46,9 +46,9 @@ const ForecastingModule = {
 
     el.innerHTML = `
       <div class="grid grid-4 gap-md mb-md">
-        ${UI.statCard('Predicted Weekly', Utils.currency(d.predicted_weekly_sales || 0), '\u2197')}
-        ${UI.statCard('Forecast Accuracy', (d.forecast_accuracy || 0) + '%', '\u2713')}
-        ${UI.statCard('Active Anomalies', d.active_anomalies || 0, '\u26A0')}
+        ${UI.statCard('Predicted Weekly', Utils.currency(d.predicted_weekly_sales || 0), '')}
+        ${UI.statCard('Forecast Accuracy', (d.forecast_accuracy || 0) + '%', '')}
+        ${UI.statCard('Active Anomalies', d.active_anomalies || 0, '')}
         ${UI.statCard('Today\'s Anomalies', anomalyResult.anomalies_detected || 0, '!')}
       </div>
       ${anomalyResult.anomalies?.length > 0 ? `
@@ -92,7 +92,7 @@ const ForecastingModule = {
         <div class="card">
           <div class="card-header flex items-center justify-between">
             <h3>14-Day Sales Forecast</h3>
-            <span class="text-sm text-muted">Trend: ${forecast.trend_multiplier > 1 ? '\u2197 Up' : forecast.trend_multiplier < 1 ? '\u2198 Down' : '\u2192 Flat'} (${((forecast.trend_multiplier - 1) * 100).toFixed(1)}%)</span>
+            <span class="text-sm text-muted">Trend: ${forecast.trend_multiplier > 1 ? 'Up' : forecast.trend_multiplier < 1 ? 'Down' : 'Flat'} (${((forecast.trend_multiplier - 1) * 100).toFixed(1)}%)</span>
           </div>
           <div class="card-body" style="padding:0;max-height:500px;overflow-y:auto">
             ${UI.table([

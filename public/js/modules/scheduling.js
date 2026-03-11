@@ -15,9 +15,9 @@ const SchedulingModule = {
     container.innerHTML = `<div class="schedule-container animate-fade">
       <div class="schedule-header">
         <div class="schedule-nav">
-          <button class="btn btn-ghost" onclick="SchedulingModule.changeWeek(-1)">\u25C0</button>
+          <button class="btn btn-ghost" onclick="SchedulingModule.changeWeek(-1)"><</button>
           <span class="font-bold">Week of ${Utils.formatDate(this.weekStart)}</span>
-          <button class="btn btn-ghost" onclick="SchedulingModule.changeWeek(1)">\u25B6</button>
+          <button class="btn btn-ghost" onclick="SchedulingModule.changeWeek(1)">></button>
           <button class="btn btn-ghost btn-sm" onclick="SchedulingModule.weekStart=Utils.getWeekStart(); SchedulingModule.render(document.getElementById('main-body'))">This Week</button>
         </div>
         <div class="flex gap-sm">

@@ -13,7 +13,7 @@ const NotificationsModule = {
         ${alerts.length === 0 ? '<div class="empty-state"><h3>All Clear</h3><p>No alerts</p></div>' :
           alerts.map(a => `
             <div class="flex items-center gap-md p-md ${a.acknowledged ? 'text-muted' : ''}" style="border-bottom:1px solid var(--border-color)">
-              <span style="font-size:20px">${a.severity === 'critical' ? '\u2716' : a.severity === 'high' ? '\u26A0' : a.severity === 'medium' ? '\u25CF' : '\u2139'}</span>
+              <span style="font-size:20px">${a.severity === 'critical' ? 'CRIT' : a.severity === 'high' ? 'HIGH' : a.severity === 'medium' ? 'MED' : 'LOW'}</span>
               <div class="flex-1">
                 <div class="font-medium">${Utils.escapeHtml(a.title)}</div>
                 <div class="text-sm text-secondary">${Utils.escapeHtml(a.message || '')}</div>

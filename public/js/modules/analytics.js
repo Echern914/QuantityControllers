@@ -10,8 +10,8 @@ const AnalyticsModule = {
       <div class="grid grid-4 gap-md mb-md">
         ${UI.statCard("Today's Revenue", Utils.currency(realtime.today_sales), '$')}
         ${UI.statCard('Orders', realtime.today_orders, '#')}
-        ${UI.statCard('Avg Check', Utils.currency(realtime.avg_check), '\u00F8')}
-        ${UI.statCard('Guests', realtime.today_guests, '\u2637')}
+        ${UI.statCard('Avg Check', Utils.currency(realtime.avg_check), '')}
+        ${UI.statCard('Guests', realtime.today_guests, '')}
       </div>
 
       <div class="tabs mb-md">
@@ -73,7 +73,7 @@ const AnalyticsModule = {
         <div class="grid grid-3 gap-md mb-md">
           ${UI.statCard('Total Labor Cost', Utils.currency(labor.total_labor_cost), '$')}
           ${UI.statCard('Labor %', Utils.percent(labor.labor_cost_percent), '%')}
-          ${UI.statCard('Total Sales', Utils.currency(labor.total_sales), '\u2211')}
+          ${UI.statCard('Total Sales', Utils.currency(labor.total_sales), '')}
         </div>
         <div class="card"><div class="card-body">${UI.table([
           { label: 'Employee', key: r => r, render: (_, r) => `${r.first_name} ${r.last_name}` },
@@ -88,8 +88,8 @@ const AnalyticsModule = {
       content.innerHTML = `
         <div class="grid grid-3 gap-md mb-md">
           ${UI.statCard('Total Revenue', Utils.currency(fc.total_revenue), '$')}
-          ${UI.statCard('Total Food Cost', Utils.currency(fc.total_food_cost), '\u25A4')}
-          ${UI.statCard('Food Cost %', Utils.percent(fc.overall_food_cost_percent), `<span class="${fc.overall_food_cost_percent > 35 ? 'text-danger' : 'text-success'}">${fc.overall_food_cost_percent > 35 ? '\u26A0' : '\u2713'}</span>`)}
+          ${UI.statCard('Total Food Cost', Utils.currency(fc.total_food_cost), '')}
+          ${UI.statCard('Food Cost %', Utils.percent(fc.overall_food_cost_percent), `<span class="${fc.overall_food_cost_percent > 35 ? 'text-danger' : 'text-success'}">${fc.overall_food_cost_percent > 35 ? 'HIGH' : 'OK'}</span>`)}
         </div>
         <div class="card"><div class="card-body">${UI.table([
           { label: 'Item', key: 'name' },
