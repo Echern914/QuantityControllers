@@ -115,6 +115,7 @@ const API = {
   // Suppliers
   suppliers() { return this.get('/api/suppliers'); },
   createSupplier(data) { return this.post('/api/suppliers', data); },
+  updateSupplier(id, data) { return this.put(`/api/suppliers/${id}`, data); },
   purchaseOrders(params) { return this.get('/api/suppliers/purchase-orders' + (params ? '?' + new URLSearchParams(params) : '')); },
   createPO(data) { return this.post('/api/suppliers/purchase-orders', data); },
   receivePO(id, items) { return this.patch(`/api/suppliers/purchase-orders/${id}/receive`, { items }); },

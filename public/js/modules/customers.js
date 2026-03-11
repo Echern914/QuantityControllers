@@ -1,16 +1,28 @@
 const CustomersModule = {
+  _customers: [],
+
   async render(container) {
-    const customers = await API.customers();
+    this._customers = await API.customers();
+
+    const totalSpent = this._customers.reduce((s, c) => s + (c.total_spent || 0), 0);
+    const vipCount = this._customers.filter(c => c.vip_tier && c.vip_tier !== 'none').length;
+
     container.innerHTML = `<div class="animate-fade">
+      <div class="grid grid-4 gap-md mb-md">
+        ${UI.statCard('Total Customers', this._customers.length, '')}
+        ${UI.statCard('VIP Members', vipCount, '')}
+        ${UI.statCard('Total Revenue', Utils.currency(totalSpent), '')}
+        ${UI.statCard('Avg Spend', Utils.currency(this._customers.length ? totalSpent / this._customers.length : 0), '')}
+      </div>
       <div class="flex justify-between items-center mb-md">
-        <div class="search-box" style="width:300px"><span class="search-icon"></span><input class="form-input" placeholder="Search customers..." id="cust-search" oninput="CustomersModule.search(this.value)"></div>
+        <div class="search-box" style="width:300px"><input class="form-input" placeholder="Search customers..." id="cust-search" oninput="CustomersModule.search(this.value)"></div>
         <div class="flex gap-sm">
-          <button class="btn btn-primary" onclick="CustomersModule.addCustomer()">+ Add Customer</button>
           <button class="btn btn-secondary" onclick="CustomersModule.showBirthdays()">Birthdays</button>
+          <button class="btn btn-primary" onclick="CustomersModule.addCustomer()">+ Add Customer</button>
         </div>
       </div>
       <div class="card"><div class="card-body" style="overflow-x:auto" id="cust-table">
-        ${this.renderTable(customers)}
+        ${this.renderTable(this._customers)}
       </div></div>
     </div>`;
   },
@@ -19,34 +31,86 @@ const CustomersModule = {
     return UI.table([
       { label: 'Customer', key: r => r, render: (_, r) => `<div class="font-medium">${Utils.escapeHtml(r.first_name)} ${Utils.escapeHtml(r.last_name || '')}</div><div class="text-sm text-muted">${Utils.escapeHtml(r.email || r.phone || '')}</div>` },
       { label: 'VIP', key: 'vip_tier', render: v => Utils.statusBadge(v) },
-      { label: 'Points', key: 'loyalty_points', align: 'right', render: v => `<strong>${v.toLocaleString()}</strong>` },
+      { label: 'Points', key: 'loyalty_points', align: 'right', render: v => `<strong>${(v || 0).toLocaleString()}</strong>` },
       { label: 'Visits', key: 'total_visits', align: 'center' },
       { label: 'Total Spent', key: 'total_spent', align: 'right', render: v => Utils.currency(v) },
       { label: 'Last Visit', key: 'last_visit_at', render: v => v ? Utils.timeAgo(v) : 'Never' },
-      { label: '', key: r => r, render: (_, r) => `<div class="flex gap-xs"><button class="btn btn-ghost btn-sm" onclick="CustomersModule.viewCustomer(${r.id})">View</button><button class="btn btn-ghost btn-sm" onclick="CustomersModule.editCustomer(${r.id})">Edit</button></div>` },
+      { label: '', key: r => r, render: (_, r) => `<div class="flex gap-xs">
+        <button class="btn btn-ghost btn-sm" onclick="CustomersModule.viewCustomer(${r.id})">View</button>
+        <button class="btn btn-ghost btn-sm" onclick="CustomersModule.editCustomer(${r.id})">Edit</button>
+      </div>` },
     ], customers, { emptyMessage: 'No customers yet' });
   },
 
   async search(term) {
-    if (!term) { this.render(document.getElementById('main-body')); return; }
-    const customers = await API.customers({ search: term });
-    document.getElementById('cust-table').innerHTML = this.renderTable(customers);
+    if (!term) {
+      document.getElementById('cust-table').innerHTML = this.renderTable(this._customers);
+      return;
+    }
+    const filtered = this._customers.filter(c => {
+      const searchable = `${c.first_name} ${c.last_name} ${c.email || ''} ${c.phone || ''}`.toLowerCase();
+      return searchable.includes(term.toLowerCase());
+    });
+    document.getElementById('cust-table').innerHTML = this.renderTable(filtered);
+  },
+
+  _customerFormHtml(c) {
+    return `
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">First Name *</label><input class="form-input" id="c-first" value="${Utils.escapeHtml(c?.first_name || '')}"></div>
+        <div class="form-group"><label class="form-label">Last Name</label><input class="form-input" id="c-last" value="${Utils.escapeHtml(c?.last_name || '')}"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" id="c-email" value="${Utils.escapeHtml(c?.email || '')}"></div>
+        <div class="form-group"><label class="form-label">Phone</label><input class="form-input" id="c-phone" value="${Utils.escapeHtml(c?.phone || '')}"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Birthday</label><input type="date" class="form-input" id="c-bday" value="${c?.birthday || ''}"></div>
+        <div class="form-group"><label class="form-label">VIP Tier</label><select class="form-select" id="c-vip">
+          <option value="none" ${(!c?.vip_tier || c?.vip_tier === 'none') ? 'selected' : ''}>None</option>
+          <option value="bronze" ${c?.vip_tier === 'bronze' ? 'selected' : ''}>Bronze</option>
+          <option value="silver" ${c?.vip_tier === 'silver' ? 'selected' : ''}>Silver</option>
+          <option value="gold" ${c?.vip_tier === 'gold' ? 'selected' : ''}>Gold</option>
+          <option value="platinum" ${c?.vip_tier === 'platinum' ? 'selected' : ''}>Platinum</option>
+        </select></div>
+      </div>
+      <div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" id="c-notes" rows="2">${Utils.escapeHtml(c?.notes || '')}</textarea></div>
+    `;
+  },
+
+  _getCustomerData(modal) {
+    return {
+      first_name: modal.querySelector('#c-first').value.trim(),
+      last_name: modal.querySelector('#c-last').value.trim(),
+      email: modal.querySelector('#c-email').value.trim(),
+      phone: modal.querySelector('#c-phone').value.trim(),
+      birthday: modal.querySelector('#c-bday').value,
+      vip_tier: modal.querySelector('#c-vip').value,
+      notes: modal.querySelector('#c-notes').value.trim(),
+    };
   },
 
   async addCustomer() {
-    const html = `
-      <div class="form-row"><div class="form-group"><label class="form-label">First Name</label><input class="form-input" id="c-first"></div>
-      <div class="form-group"><label class="form-label">Last Name</label><input class="form-input" id="c-last"></div></div>
-      <div class="form-row"><div class="form-group"><label class="form-label">Email</label><input class="form-input" id="c-email"></div>
-      <div class="form-group"><label class="form-label">Phone</label><input class="form-input" id="c-phone"></div></div>
-      <div class="form-group"><label class="form-label">Birthday</label><input type="date" class="form-input" id="c-bday"></div>
-      <div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" id="c-notes"></textarea></div>
-    `;
-    const modal = await UI.modal('Add Customer', html, { confirmText: 'Create' });
+    const modal = await UI.modal('Add Customer', this._customerFormHtml(null), { confirmText: 'Create' });
     if (!modal) return;
+    const data = this._getCustomerData(modal);
+    if (!data.first_name) { UI.toast('Error', 'First name is required', 'danger'); return; }
     try {
-      await API.createCustomer({ first_name: modal.querySelector('#c-first').value, last_name: modal.querySelector('#c-last').value, email: modal.querySelector('#c-email').value, phone: modal.querySelector('#c-phone').value, birthday: modal.querySelector('#c-bday').value, notes: modal.querySelector('#c-notes').value });
+      await API.createCustomer(data);
       UI.toast('Customer Added', '', 'success');
+      this.render(document.getElementById('main-body'));
+    } catch (err) { UI.toast('Error', err.message, 'danger'); }
+  },
+
+  async editCustomer(id) {
+    const c = this._customers.find(c => c.id === id) || await API.customer(id);
+    const modal = await UI.modal(`Edit - ${c.first_name} ${c.last_name || ''}`, this._customerFormHtml(c), { confirmText: 'Save Changes' });
+    if (!modal) return;
+    const data = this._getCustomerData(modal);
+    if (!data.first_name) { UI.toast('Error', 'First name is required', 'danger'); return; }
+    try {
+      await API.updateCustomer(id, data);
+      UI.toast('Updated', `${data.first_name} has been updated`, 'success');
       this.render(document.getElementById('main-body'));
     } catch (err) { UI.toast('Error', err.message, 'danger'); }
   },
@@ -55,18 +119,19 @@ const CustomersModule = {
     const c = await API.customer(id);
     const html = `
       <div class="grid grid-3 gap-md mb-md">
-        ${UI.statCard('Loyalty Points', c.loyalty_points.toLocaleString(), '')}
-        ${UI.statCard('Total Visits', c.total_visits, '#')}
-        ${UI.statCard('Total Spent', Utils.currency(c.total_spent), '$')}
+        ${UI.statCard('Loyalty Points', (c.loyalty_points || 0).toLocaleString(), '')}
+        ${UI.statCard('Total Visits', c.total_visits || 0, '')}
+        ${UI.statCard('Total Spent', Utils.currency(c.total_spent || 0), '')}
       </div>
       <div class="flex items-center gap-md mb-md">
         <span class="text-lg font-bold">${Utils.escapeHtml(c.first_name)} ${Utils.escapeHtml(c.last_name || '')}</span>
-        ${Utils.statusBadge(c.vip_tier)}
+        ${c.vip_tier && c.vip_tier !== 'none' ? Utils.statusBadge(c.vip_tier) : ''}
       </div>
       <div class="text-sm text-secondary mb-sm">${c.email || ''} ${c.phone ? '| ' + c.phone : ''}</div>
       ${c.birthday ? `<div class="text-sm text-secondary mb-md">Birthday: ${Utils.formatDate(c.birthday)}</div>` : ''}
+      ${c.notes ? `<div class="text-sm text-muted mb-md">Notes: ${Utils.escapeHtml(c.notes)}</div>` : ''}
       <h4 class="mb-sm">Recent Orders</h4>
-      ${c.recent_orders.length ? UI.table([
+      ${c.recent_orders && c.recent_orders.length ? UI.table([
         { label: 'Order', key: 'order_number' },
         { label: 'Total', key: 'total', render: v => Utils.currency(v) },
         { label: 'Date', key: 'opened_at', render: v => Utils.formatDateTime(v) },
@@ -75,6 +140,7 @@ const CustomersModule = {
       <div class="flex gap-sm mt-md">
         <button class="btn btn-primary btn-sm" onclick="CustomersModule.addPoints(${c.id})">+ Add Points</button>
         <button class="btn btn-secondary btn-sm" onclick="CustomersModule.redeemPoints(${c.id})">Redeem Points</button>
+        <button class="btn btn-ghost btn-sm" onclick="CustomersModule.editCustomer(${c.id})">Edit Customer</button>
       </div>
     `;
     await UI.modal(`${c.first_name} ${c.last_name || ''}`, html, { footer: false, size: 'lg' });
@@ -108,6 +174,5 @@ const CustomersModule = {
     await UI.modal('Upcoming Birthdays (30 days)', html, { footer: false });
   },
 
-  editCustomer(id) { this.viewCustomer(id); },
   destroy() {}
 };

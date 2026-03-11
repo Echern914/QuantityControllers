@@ -390,3 +390,63 @@
 }
 
 .ai-quick-btn:hover { border-color: var(--accent-primary); color: var(--text-primary); }
+
+/* ---- AI Assistant Enhanced ---- */
+.ai-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-card);
+}
+.ai-header-left { display: flex; align-items: center; gap: var(--space-md); }
+.ai-logo { font-size: 1.3rem; font-weight: 800; letter-spacing: -1px; color: var(--text-primary); }
+.ai-title { font-weight: 700; font-size: 0.95rem; }
+.ai-subtitle { font-size: 0.75rem; color: var(--text-muted); }
+.ai-thinking { display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 13px; }
+.ai-msg-content { line-height: 1.7; font-size: 14px; }
+.ai-msg-content strong { color: var(--accent-primary); }
+.ai-message.assistant .ai-msg-content strong { color: var(--accent-primary); }
+.ai-message.user .ai-msg-content { color: white; }
+.ai-message.user .ai-msg-content strong { color: white; }
+
+.ai-code-block {
+  background: var(--bg-primary);
+  padding: 12px;
+  border-radius: 8px;
+  overflow-x: auto;
+  font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  margin: 8px 0;
+  border: 1px solid var(--border-color);
+}
+.ai-inline-code {
+  background: var(--bg-primary);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+}
+.ai-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10px 0;
+  font-size: 13px;
+}
+.ai-table th {
+  background: var(--bg-primary);
+  padding: 8px 10px;
+  text-align: left;
+  font-weight: 600;
+  border-bottom: 2px solid var(--border-color);
+  white-space: nowrap;
+}
+.ai-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border-color);
+}
+.ai-table tr:hover td { background: rgba(99, 102, 241, 0.05); }
+.ai-h { margin: 10px 0 6px; font-weight: 700; }
+.ai-list { margin: 6px 0 6px 20px; }
+.ai-list li { margin-bottom: 4px; }
