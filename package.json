@@ -1,0 +1,19 @@
+{
+  "name": "nexus-pos",
+  "version": "1.0.0",
+  "description": "Nexus POS - Integrated Restaurant & Bar Management System",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "seed": "node db/seed.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.6.2",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "pdfkit": "^0.15.0",
+    "stripe": "^17.0.0"
+  }
+}
