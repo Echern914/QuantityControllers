@@ -1,5 +1,5 @@
 /* ============================================================
-   NEXUS POS - Floor Plan Module
+   VENUECORE - Floor Plan Module
    ============================================================ */
 const FloorPlan = {
   refreshInterval: null,

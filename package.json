@@ -1,7 +1,7 @@
 {
-  "name": "nexus-pos",
+  "name": "venuecore-pos",
   "version": "1.0.0",
-  "description": "Nexus POS - Integrated Restaurant & Bar Management System",
+  "description": "VenueCore - Integrated Restaurant & Bar Management System",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

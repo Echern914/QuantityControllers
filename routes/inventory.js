@@ -591,4 +591,240 @@ router.get('/reorder-suggestions', (req, res) => {
   res.json(result);
 });
 
+// ============================================================
+// PROFITABILITY ANALYZER
+// ============================================================
+
+// GET /api/inventory/profitability - detailed cost breakdown per menu item
+router.get('/profitability', (req, res) => {
+  const db = getDb();
+  const days = parseInt(req.query.days || '30');
+
+  // Get all menu items with recipes
+  const items = db.prepare(`
+    SELECT mi.id, mi.name, mi.price, mi.cost as listed_cost, mi.category_id,
+           mc.name as category_name, mc.color as category_color,
+           mi.station, mi.active
+    FROM menu_items mi
+    LEFT JOIN menu_categories mc ON mi.category_id = mc.id
+    WHERE mi.active = 1
+    ORDER BY mc.display_order, mi.display_order
+  `).all();
+
+  const getRecipe = db.prepare(`
+    SELECT r.ingredient_id, r.quantity, r.unit,
+           i.name as ingredient_name, i.cost_per_unit, i.unit as ingredient_unit
+    FROM recipes r
+    JOIN ingredients i ON r.ingredient_id = i.id
+    WHERE r.menu_item_id = ?
+  `);
+
+  const getSalesData = db.prepare(`
+    SELECT COALESCE(SUM(oi.quantity), 0) as qty_sold,
+           COALESCE(SUM(oi.quantity * oi.unit_price), 0) as revenue
+    FROM order_items oi
+    JOIN orders o ON oi.order_id = o.id
+    WHERE oi.menu_item_id = ? AND o.status = 'closed' AND oi.voided = 0
+      AND o.opened_at >= datetime('now', '-' || ? || ' days')
+  `);
+
+  const result = [];
+
+  for (const item of items) {
+    const recipe = getRecipe.all(item.id);
+    const sales = getSalesData.get(item.id, days);
+
+    // Calculate true ingredient cost from recipe
+    let ingredientCost = 0;
+    const ingredients = recipe.map(r => {
+      const lineCost = +(r.quantity * r.cost_per_unit).toFixed(4);
+      ingredientCost += lineCost;
+      return {
+        name: r.ingredient_name,
+        quantity: r.quantity,
+        unit: r.unit,
+        cost_per_unit: r.cost_per_unit,
+        line_cost: +lineCost.toFixed(2),
+      };
+    });
+
+    ingredientCost = +ingredientCost.toFixed(2);
+    const profit = +(item.price - ingredientCost).toFixed(2);
+    const marginPercent = item.price > 0 ? +((profit / item.price) * 100).toFixed(1) : 0;
+    const costPercent = item.price > 0 ? +((ingredientCost / item.price) * 100).toFixed(1) : 0;
+    const markup = ingredientCost > 0 ? +((item.price / ingredientCost)).toFixed(1) : 0;
+
+    result.push({
+      id: item.id,
+      name: item.name,
+      category: item.category_name,
+      category_color: item.category_color,
+      station: item.station,
+      sell_price: item.price,
+      ingredient_cost: ingredientCost,
+      profit_per_unit: profit,
+      margin_percent: marginPercent,
+      cost_percent: costPercent,
+      markup_multiplier: markup,
+      has_recipe: recipe.length > 0,
+      ingredients,
+      qty_sold: sales.qty_sold,
+      total_revenue: +sales.revenue.toFixed(2),
+      total_profit: +(sales.qty_sold * profit).toFixed(2),
+      total_cogs: +(sales.qty_sold * ingredientCost).toFixed(2),
+    });
+  }
+
+  // Sort by margin (lowest first = needs attention)
+  result.sort((a, b) => a.margin_percent - b.margin_percent);
+
+  // Summary stats
+  const withRecipe = result.filter(r => r.has_recipe);
+  const avgMargin = withRecipe.length > 0
+    ? +(withRecipe.reduce((s, r) => s + r.margin_percent, 0) / withRecipe.length).toFixed(1)
+    : 0;
+  const totalRevenue = result.reduce((s, r) => s + r.total_revenue, 0);
+  const totalCogs = result.reduce((s, r) => s + r.total_cogs, 0);
+  const totalProfit = result.reduce((s, r) => s + r.total_profit, 0);
+  const lowMarginCount = withRecipe.filter(r => r.margin_percent < 60).length;
+  const highMarginCount = withRecipe.filter(r => r.margin_percent >= 75).length;
+
+  res.json({
+    items: result,
+    summary: {
+      total_items: result.length,
+      items_with_recipes: withRecipe.length,
+      avg_margin: avgMargin,
+      total_revenue: +totalRevenue.toFixed(2),
+      total_cogs: +totalCogs.toFixed(2),
+      total_profit: +totalProfit.toFixed(2),
+      overall_margin: totalRevenue > 0 ? +((totalProfit / totalRevenue) * 100).toFixed(1) : 0,
+      low_margin_items: lowMarginCount,
+      high_margin_items: highMarginCount,
+      days_analyzed: days,
+    }
+  });
+});
+
+// POST /api/inventory/profitability/analyze - AI analysis of a specific item
+router.post('/profitability/analyze', async (req, res) => {
+  const db = getDb();
+  const { menu_item_id } = req.body;
+
+  if (!menu_item_id) return res.status(400).json({ error: 'menu_item_id required' });
+
+  const item = db.prepare(`
+    SELECT mi.*, mc.name as category_name
+    FROM menu_items mi
+    LEFT JOIN menu_categories mc ON mi.category_id = mc.id
+    WHERE mi.id = ?
+  `).get(menu_item_id);
+
+  if (!item) return res.status(404).json({ error: 'Menu item not found' });
+
+  const recipe = db.prepare(`
+    SELECT r.*, i.name as ingredient_name, i.cost_per_unit, i.unit as ingredient_unit
+    FROM recipes r
+    JOIN ingredients i ON r.ingredient_id = i.id
+    WHERE r.menu_item_id = ?
+  `).all(menu_item_id);
+
+  let ingredientCost = 0;
+  const breakdown = recipe.map(r => {
+    const cost = +(r.quantity * r.cost_per_unit).toFixed(2);
+    ingredientCost += cost;
+    return { name: r.ingredient_name, qty: r.quantity, unit: r.unit, cost_per_unit: r.cost_per_unit, line_cost: cost };
+  });
+
+  const margin = item.price > 0 ? +(((item.price - ingredientCost) / item.price) * 100).toFixed(1) : 0;
+
+  // Get sales volume
+  const sales = db.prepare(`
+    SELECT COALESCE(SUM(oi.quantity), 0) as qty FROM order_items oi
+    JOIN orders o ON oi.order_id = o.id
+    WHERE oi.menu_item_id = ? AND o.status = 'closed' AND oi.voided = 0
+      AND o.opened_at >= datetime('now', '-30 days')
+  `).get(menu_item_id);
+
+  // Build AI prompt
+  const prompt = `You are a restaurant profitability consultant. Analyze this menu item and give actionable recommendations.
+
+Menu Item: ${item.name}
+Category: ${item.category_name || 'Uncategorized'}
+Sell Price: $${item.price.toFixed(2)}
+Total Ingredient Cost: $${ingredientCost.toFixed(2)}
+Profit per Unit: $${(item.price - ingredientCost).toFixed(2)}
+Margin: ${margin}%
+Units Sold (30 days): ${sales.qty}
+Monthly Revenue: $${(sales.qty * item.price).toFixed(2)}
+Monthly Profit: $${(sales.qty * (item.price - ingredientCost)).toFixed(2)}
+
+Ingredient Breakdown:
+${breakdown.map(b => `- ${b.name}: ${b.qty} ${b.unit} x $${b.cost_per_unit.toFixed(2)} = $${b.line_cost.toFixed(2)}`).join('\n')}
+
+Provide a concise analysis (3-5 bullet points) covering:
+1. Is this margin healthy for its category? (Target: drinks 75-85%, food 65-75%)
+2. Which ingredient is eating the most margin?
+3. Specific ways to improve profitability (portion adjustment, price change, ingredient substitution)
+4. Is the sales volume justifying the menu space?
+Keep each point to 1-2 sentences. Be specific with numbers.`;
+
+  // Try AI analysis
+  const apiKey = process.env.ANTHROPIC_API_KEY || db.prepare(`SELECT value FROM settings WHERE key = 'anthropic_api_key'`).get()?.value;
+
+  if (!apiKey) {
+    // Return a rule-based analysis without AI
+    const tips = [];
+    if (margin < 60) tips.push(`Low margin alert: ${margin}% is below the 65% minimum target. Consider raising price by $${Math.ceil((ingredientCost / 0.65) - item.price)} or reducing portion size.`);
+    else if (margin < 70) tips.push(`Margin of ${margin}% is acceptable but below optimal. A $1 price increase would bring it to ${(((item.price + 1 - ingredientCost) / (item.price + 1)) * 100).toFixed(0)}%.`);
+    else tips.push(`Strong margin at ${margin}%. This item is a healthy contributor.`);
+
+    if (breakdown.length > 0) {
+      const costliest = breakdown.sort((a, b) => b.line_cost - a.line_cost)[0];
+      tips.push(`Highest cost ingredient: ${costliest.name} at $${costliest.line_cost.toFixed(2)} (${((costliest.line_cost / ingredientCost) * 100).toFixed(0)}% of total cost). Look into bulk pricing or alternatives.`);
+    }
+
+    if (sales.qty === 0) tips.push('No sales in the last 30 days. Consider promoting this item or removing it from the menu.');
+    else if (sales.qty < 10) tips.push(`Only ${sales.qty} sold in 30 days. Low volume means this item should either be promoted or replaced.`);
+    else tips.push(`${sales.qty} units sold in 30 days generating $${(sales.qty * (item.price - ingredientCost)).toFixed(2)} profit. Solid performer.`);
+
+    if (item.price < ingredientCost * 2) tips.push(`Markup is only ${(item.price / ingredientCost).toFixed(1)}x. Industry standard is 3-4x for drinks and 2.5-3x for food.`);
+
+    return res.json({
+      item_name: item.name,
+      analysis: tips.join('\n\n'),
+      source: 'rule-based',
+      data: { sell_price: item.price, ingredient_cost: ingredientCost, margin, qty_sold: sales.qty, breakdown }
+    });
+  }
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 500,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    });
+
+    const aiData = await response.json();
+    const analysis = aiData.content?.[0]?.text || 'Analysis unavailable';
+
+    res.json({
+      item_name: item.name,
+      analysis,
+      source: 'ai',
+      data: { sell_price: item.price, ingredient_cost: ingredientCost, margin, qty_sold: sales.qty, breakdown }
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'AI analysis failed: ' + err.message });
+  }
+});
+
 module.exports = router;

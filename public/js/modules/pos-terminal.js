@@ -1,5 +1,5 @@
 /* ============================================================
-   NEXUS POS - POS Terminal Module
+   VENUECORE - POS Terminal Module
    ============================================================ */
 const POSTerminal = {
   currentOrder: null,

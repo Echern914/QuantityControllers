@@ -1,5 +1,6 @@
 /* ============================================================
-   NEXUS POS - Main Application Router & State
+   VENUECORE - Main Application Router & State
+   Role-based: Admin vs Staff
    ============================================================ */
 const App = {
   employee: null,
@@ -7,9 +8,14 @@ const App = {
   sseConnection: null,
   clockInterval: null,
   alertCount: 0,
+  demoMode: false,
+
+  // Role helpers
+  isAdmin() {
+    return this.employee && ['admin', 'manager'].includes(this.employee.role);
+  },
 
   async init() {
-    // Check for existing session
     if (API.token) {
       try {
         const data = await API.me();
@@ -25,11 +31,16 @@ const App = {
   },
 
   showLogin() {
+    this.demoMode = false;
+    document.body.classList.remove('demo-mode');
+    const banner = document.getElementById('demo-banner');
+    if (banner) banner.remove();
+
     const app = document.getElementById('app');
     app.innerHTML = `
       <div class="login-screen">
         <div class="login-container animate-fade">
-          <div class="login-logo">NEXUS</div>
+          <div class="login-logo">VENUECORE</div>
           <div class="login-subtitle">Point of Sale System</div>
           <div class="pin-display">
             <div class="pin-dot" id="dot-0"></div>
@@ -52,13 +63,12 @@ const App = {
             <button class="pin-btn enter" onclick="App.pinSubmit()">GO</button>
           </div>
           <div class="login-error" id="login-error"></div>
-          <div class="login-quick-access">
-            <h4>Quick Access</h4>
-            <div class="quick-login-btns">
-              <button class="quick-login-btn" onclick="App.quickLogin('1234')">Admin (1234)</button>
-              <button class="quick-login-btn" onclick="App.quickLogin('1111')">Manager (1111)</button>
-              <button class="quick-login-btn" onclick="App.quickLogin('2222')">Server (2222)</button>
-            </div>
+          <div class="demo-section">
+            <div class="demo-section-label">First time here?</div>
+            <button class="demo-start-btn" onclick="App.startDemo()">
+              <span class="demo-play-icon">\u25B6</span>
+              <span>Try Interactive Demo</span>
+            </button>
           </div>
         </div>
       </div>
@@ -102,16 +112,87 @@ const App = {
     setTimeout(() => this.pinSubmit(), 200);
   },
 
+  // ---- Demo Mode ----
+  async startDemo() {
+    const btn = document.querySelector('.demo-start-btn');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="demo-play-icon">\u25F4</span><span>Loading demo data...</span>';
+    }
+
+    try {
+      const data = await API.startDemo();
+      API.setToken(data.token);
+      this.employee = data.employee;
+      this.demoMode = true;
+      this.showApp();
+      this.showDemoBanner();
+      // Start the guided tour after a brief pause
+      setTimeout(() => DemoTour.start(), 600);
+    } catch (err) {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<span class="demo-play-icon">\u25B6</span><span>Try Interactive Demo</span>';
+      }
+      const errEl = document.getElementById('login-error');
+      if (errEl) errEl.textContent = 'Failed to start demo: ' + err.message;
+    }
+  },
+
+  showDemoBanner() {
+    // Remove old banner if exists
+    const old = document.getElementById('demo-banner');
+    if (old) old.remove();
+
+    document.body.classList.add('demo-mode');
+
+    const banner = document.createElement('div');
+    banner.id = 'demo-banner';
+    banner.className = 'demo-banner';
+    banner.innerHTML = `
+      <div class="demo-banner-text">
+        <div class="demo-banner-dot"></div>
+        DEMO MODE - All data is temporary
+      </div>
+      <div class="demo-banner-actions">
+        <button class="demo-banner-btn" onclick="DemoTour.start()">Restart Tour</button>
+        <button class="demo-banner-btn demo-banner-btn-exit" onclick="App.exitDemo()">Exit Demo</button>
+      </div>
+    `;
+    document.body.insertBefore(banner, document.body.firstChild);
+  },
+
+  async exitDemo() {
+    // Stop the tour if running
+    if (DemoTour.active) DemoTour.stop();
+
+    // Cleanup demo data on the server
+    try { await API.cleanupDemo(); } catch {}
+
+    // Clear session and go back to login
+    API.setToken(null);
+    this.employee = null;
+    this.demoMode = false;
+    document.body.classList.remove('demo-mode');
+    const banner = document.getElementById('demo-banner');
+    if (banner) banner.remove();
+
+    if (this.clockInterval) clearInterval(this.clockInterval);
+    if (this.sseConnection) this.sseConnection.close();
+    this.showLogin();
+  },
+
   showApp() {
     const nav = this.getNavItems();
     const app = document.getElementById('app');
     const initials = (this.employee.firstName[0] + (this.employee.lastName?.[0] || '')).toUpperCase();
+    const roleLabel = this.isAdmin() ? 'ADMIN' : 'STAFF';
 
     app.innerHTML = `
       <div class="sidebar">
         <div class="sidebar-header">
-          <div class="sidebar-logo">NEXUS</div>
-          <div class="sidebar-version">POS v1.0</div>
+          <div class="sidebar-logo">VENUECORE</div>
+          <div class="sidebar-version">${roleLabel}</div>
         </div>
         <nav class="sidebar-nav" id="sidebar-nav">
           ${nav.map(section => `
@@ -134,7 +215,7 @@ const App = {
               <div class="sidebar-user-name">${Utils.escapeHtml(this.employee.firstName)} ${Utils.escapeHtml(this.employee.lastName || '')}</div>
               <div class="sidebar-user-role">${Utils.escapeHtml(this.employee.role)}</div>
             </div>
-            <button class="sidebar-logout" onclick="App.logout()" title="Logout">\u23FB</button>
+            <button class="sidebar-logout" onclick="${this.demoMode ? 'App.exitDemo()' : 'App.logout()'}" title="${this.demoMode ? 'Exit Demo' : 'Logout'}">\u23FB</button>
           </div>
         </div>
       </div>
@@ -153,72 +234,124 @@ const App = {
       </div>
     `;
 
-    // Start clock
     this.updateClock();
     this.clockInterval = setInterval(() => this.updateClock(), 1000);
-
-    // Start SSE
     this.connectSSE();
-
-    // Load alert count
     this.updateAlertCount();
+    if (this.isAdmin()) this.updateReorderBadge();
 
-    // Navigate to default route or hash
     const hash = location.hash.slice(2) || 'dashboard';
-    this.navigate(hash);
+    // Validate route access
+    const allowedRoutes = this._getAllowedRoutes();
+    this.navigate(allowedRoutes.includes(hash) ? hash : 'dashboard');
+  },
+
+  _getAllowedRoutes() {
+    const nav = this.getNavItems();
+    const routes = [];
+    for (const section of nav) {
+      for (const item of section.items) {
+        routes.push(item.route);
+      }
+    }
+    return routes;
   },
 
   getNavItems() {
-    return [
+    const admin = this.isAdmin();
+
+    // Staff operations - everyone gets these
+    const sections = [
       {
         title: 'Operations',
         items: [
           { route: 'dashboard', label: 'Dashboard', icon: '\u25A6' },
           { route: 'pos', label: 'POS Terminal', icon: '$' },
-          { route: 'kitchen', label: 'Kitchen (KDS)', icon: '\u2615', badgeId: 'badge-kitchen' },
+          { route: 'kitchen', label: 'Kitchen', icon: '\u2615', badgeId: 'badge-kitchen' },
           { route: 'floor', label: 'Floor Plan', icon: '\u25A3' },
-        ]
-      },
-      {
-        title: 'Management',
-        items: [
-          { route: 'menu', label: 'Menu Manager', icon: '\u2630' },
-          { route: 'inventory', label: 'Inventory', icon: '\u25A4', badgeId: 'badge-inventory' },
-          { route: 'suppliers', label: 'Suppliers', icon: '\u2192' },
-          { route: 'customers', label: 'Customers', icon: '\u2637' },
-          { route: 'reservations', label: 'Reservations', icon: '\u2316' },
-        ]
-      },
-      {
-        title: 'Team',
-        items: [
-          { route: 'staff', label: 'Staff', icon: '\u2605' },
           { route: 'timeclock', label: 'Time Clock', icon: '\u23F0' },
-          { route: 'scheduling', label: 'Schedule', icon: '\u2750' },
-        ]
-      },
-      {
-        title: 'Insights',
-        items: [
-          { route: 'analytics', label: 'Analytics', icon: '\u2197' },
-          { route: 'reports', label: 'Reports', icon: '\u2261' },
-          { route: 'ai', label: 'AI Assistant', icon: '\u25C8' },
-        ]
-      },
-      {
-        title: 'System',
-        items: [
-          { route: 'notifications', label: 'Alerts', icon: '\u26A0', badgeId: 'badge-alerts' },
-          { route: 'settings', label: 'Settings', icon: '\u2699' },
         ]
       },
     ];
+
+    // Admin-only sections
+    if (admin) {
+      sections.push(
+        {
+          title: 'Management',
+          items: [
+            { route: 'menu', label: 'Menu Manager', icon: '\u2630' },
+            { route: 'inventory', label: 'Inventory', icon: '\u25A4', badgeId: 'badge-inventory' },
+            { route: 'supply-alerts', label: 'Supply Alerts', icon: '\u26A1', badgeId: 'badge-reorder' },
+            { route: 'suppliers', label: 'Suppliers', icon: '\u2192' },
+            { route: 'customers', label: 'Customers', icon: '\u2637' },
+            { route: 'reservations', label: 'Reservations', icon: '\u2316' },
+          ]
+        },
+        {
+          title: 'Team',
+          items: [
+            { route: 'staff', label: 'Staff', icon: '\u2605' },
+            { route: 'scheduling', label: 'Schedule', icon: '\u2750' },
+          ]
+        },
+        {
+          title: 'Insights',
+          items: [
+            { route: 'analytics', label: 'Analytics', icon: '\u2197' },
+            { route: 'reports', label: 'Reports', icon: '\u2261' },
+            { route: 'ai', label: 'AI Assistant', icon: '\u25C8' },
+          ]
+        },
+        {
+          title: 'Finance',
+          items: [
+            { route: 'accounting', label: 'Accounting', icon: '\u2261' },
+            { route: 'payroll', label: 'Payroll', icon: '\u2338' },
+            { route: 'ap', label: 'AP Automation', icon: '\u2192' },
+            { route: 'banking', label: 'Banking', icon: '\u2302' },
+          ]
+        },
+        {
+          title: 'Business',
+          items: [
+            { route: 'locations', label: 'Locations', icon: '\u2316' },
+            { route: 'training', label: 'Training', icon: '\u2606' },
+            { route: 'catering', label: 'Catering', icon: '\u2615' },
+            { route: 'marketing', label: 'Marketing', icon: '\u2709' },
+            { route: 'forecasting', label: 'Forecasting', icon: '\u2197' },
+          ]
+        },
+        {
+          title: 'System',
+          items: [
+            { route: 'notifications', label: 'Alerts', icon: '\u26A0', badgeId: 'badge-alerts' },
+            { route: 'settings', label: 'Settings', icon: '\u2699' },
+          ]
+        },
+      );
+    } else {
+      // Staff gets minimal system access
+      sections.push({
+        title: 'System',
+        items: [
+          { route: 'notifications', label: 'Alerts', icon: '\u26A0', badgeId: 'badge-alerts' },
+        ]
+      });
+    }
+
+    return sections;
   },
 
   async navigate(route) {
+    // Check route access
+    const allowedRoutes = this._getAllowedRoutes();
+    if (!allowedRoutes.includes(route)) {
+      route = 'dashboard';
+    }
+
     location.hash = '#/' + route;
 
-    // Update active nav
     document.querySelectorAll('.nav-item').forEach(el => {
       el.classList.toggle('active', el.dataset.route === route);
     });
@@ -227,7 +360,6 @@ const App = {
     const title = document.getElementById('page-title');
     body.className = 'main-body';
 
-    // Clean up current module
     if (this.currentModule && this.currentModule.destroy) {
       this.currentModule.destroy();
     }
@@ -239,6 +371,7 @@ const App = {
       floor: { title: 'Floor Plan', module: FloorPlan, nopad: true },
       menu: { title: 'Menu Manager', module: MenuManager },
       inventory: { title: 'Inventory', module: InventoryModule },
+      'supply-alerts': { title: 'Supply Alerts', module: SupplyAlertsModule },
       suppliers: { title: 'Suppliers', module: SuppliersModule },
       customers: { title: 'Customers', module: CustomersModule },
       reservations: { title: 'Reservations', module: ReservationsModule },
@@ -250,6 +383,15 @@ const App = {
       ai: { title: 'AI Assistant', module: AIAssistant, nopad: true },
       notifications: { title: 'Alerts', module: NotificationsModule },
       settings: { title: 'Settings', module: SettingsModule },
+      accounting: { title: 'Accounting', module: AccountingModule },
+      payroll: { title: 'Payroll', module: PayrollModule },
+      ap: { title: 'AP Automation', module: APModule },
+      banking: { title: 'Banking', module: BankingModule },
+      locations: { title: 'Locations', module: LocationsModule },
+      training: { title: 'Training', module: TrainingModule },
+      catering: { title: 'Catering', module: CateringModule },
+      marketing: { title: 'Marketing', module: MarketingModule },
+      forecasting: { title: 'Forecasting', module: ForecastingModule },
     };
 
     const page = modules[route] || modules.dashboard;
@@ -319,11 +461,30 @@ const App = {
         const badge = document.getElementById('badge-kitchen');
         if (badge) { badge.textContent = parseInt(badge.textContent || '0') + 1; badge.classList.remove('hidden'); }
         break;
+      case 'reorder_request':
+        UI.toast('Restock Needed', `${data.request.ingredient_name} - ${data.request.urgency}`, data.request.urgency === 'critical' ? 'danger' : 'warning');
+        this.updateReorderBadge();
+        break;
+      case 'reorder_approved':
+      case 'reorder_bulk_approved':
+        this.updateReorderBadge();
+        break;
       case 'clock_in':
       case 'clock_out':
         UI.toast(data.type === 'clock_in' ? 'Clock In' : 'Clock Out', data.employee, 'info');
         break;
     }
+  },
+
+  async updateReorderBadge() {
+    try {
+      const { count } = await API.reorderPending();
+      const badge = document.getElementById('badge-reorder');
+      if (badge) {
+        badge.textContent = count;
+        badge.classList.toggle('hidden', count === 0);
+      }
+    } catch {}
   },
 
   async logout() {

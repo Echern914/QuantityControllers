@@ -1,5 +1,5 @@
 /* ============================================================
-   NEXUS POS - COMPONENT STYLES
+   VENUECORE - COMPONENT STYLES
    Buttons, Cards, Forms, Tables, Modals, Toasts, Badges
    ============================================================ */
 
@@ -569,3 +569,32 @@
   border-top: 1px solid var(--border-color);
   margin: 4px 0;
 }
+
+/* ---- Module Tabs ---- */
+.module-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: var(--space-lg);
+  overflow-x: auto;
+}
+
+.tab-btn {
+  padding: 10px 20px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: var(--transition-fast);
+  font-family: inherit;
+}
+
+.tab-btn:hover { color: var(--text-primary); background: var(--bg-hover); }
+.tab-btn.active { color: var(--accent-primary); border-bottom-color: var(--accent-primary); font-weight: 600; }
+
+/* ---- Badge secondary ---- */
+.badge-secondary { background: var(--bg-hover); color: var(--text-secondary); }

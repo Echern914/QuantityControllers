@@ -1,5 +1,5 @@
 /* ============================================================
-   NEXUS POS - Kitchen Display System
+   VENUECORE - Kitchen Display System
    ============================================================ */
 const KitchenDisplay = {
   refreshInterval: null,

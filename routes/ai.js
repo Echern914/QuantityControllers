@@ -58,7 +58,7 @@ router.post('/query', async (req, res) => {
   const { query, employee_id } = req.body;
   const context = getBusinessContext();
 
-  const systemPrompt = `You are Nexus AI, an intelligent assistant for a restaurant/bar POS system called Nexus POS. You have access to the restaurant's real-time data. Be concise, actionable, and use specific numbers from the data provided. Format responses with markdown. If asked about things not in the data, say so. Never make up numbers.`;
+  const systemPrompt = `You are VenueCore AI, an intelligent assistant for a restaurant/bar POS system called VenueCore. You have access to the restaurant's real-time data. Be concise, actionable, and use specific numbers from the data provided. Format responses with markdown. If asked about things not in the data, say so. Never make up numbers.`;
 
   const userPrompt = `Restaurant data:\n${JSON.stringify(context, null, 2)}\n\nQuestion: ${query}`;
 
@@ -121,7 +121,7 @@ router.get('/demand-forecast', async (req, res) => {
 router.get('/insights', async (req, res) => {
   const context = getBusinessContext();
 
-  const systemPrompt = `You are Nexus AI. Generate 3-5 quick daily insights for a restaurant manager. Be brief - one sentence each. Include an emoji for each insight. Focus on actionable observations.`;
+  const systemPrompt = `You are VenueCore AI. Generate 3-5 quick daily insights for a restaurant manager. Be brief - one sentence each. Include an emoji for each insight. Focus on actionable observations.`;
   const userPrompt = `Today's data:\n${JSON.stringify(context, null, 2)}\n\nGenerate today's quick insights.`;
 
   const result = await callClaude(systemPrompt, userPrompt);

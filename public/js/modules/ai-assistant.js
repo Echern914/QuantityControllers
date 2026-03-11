@@ -5,7 +5,7 @@ const AIAssistant = {
     container.innerHTML = `<div class="ai-container">
       <div class="ai-messages" id="ai-messages">
         <div class="ai-message assistant">
-          <strong>Welcome to Nexus AI!</strong><br>
+          <strong>Welcome to VenueCore AI!</strong><br>
           I'm your intelligent restaurant assistant. Ask me anything about your sales, inventory, menu optimization, staffing, or demand forecasting. I can analyze your data and provide actionable insights.
         </div>
       </div>
@@ -19,7 +19,7 @@ const AIAssistant = {
         <button class="ai-quick-btn" onclick="AIAssistant.ask('Analyze my waste and suggest improvements')">Waste analysis</button>
       </div>
       <div class="ai-input-area">
-        <input type="text" class="form-input" id="ai-input" placeholder="Ask Nexus AI anything..." onkeydown="if(event.key==='Enter')AIAssistant.sendMessage()">
+        <input type="text" class="form-input" id="ai-input" placeholder="Ask VenueCore AI anything..." onkeydown="if(event.key==='Enter')AIAssistant.sendMessage()">
         <button class="btn btn-primary" onclick="AIAssistant.sendMessage()">Send</button>
       </div>
     </div>`;

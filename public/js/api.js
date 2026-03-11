@@ -1,14 +1,14 @@
 /* ============================================================
-   NEXUS POS - API Client
+   VENUECORE - API Client
    ============================================================ */
 const API = {
-  token: localStorage.getItem('nexus_token'),
+  token: localStorage.getItem('venuecore_token'),
   baseUrl: '',
 
   setToken(token) {
     this.token = token;
-    if (token) localStorage.setItem('nexus_token', token);
-    else localStorage.removeItem('nexus_token');
+    if (token) localStorage.setItem('venuecore_token', token);
+    else localStorage.removeItem('venuecore_token');
   },
 
   async request(method, path, body) {
@@ -95,6 +95,22 @@ const API = {
   rejectTransfer(id) { return this.patch(`/api/inventory/transfers/${id}/reject`); },
   // Reorder suggestions
   reorderSuggestions() { return this.get('/api/inventory/reorder-suggestions'); },
+  // Profitability
+  profitability(days) { return this.get(`/api/inventory/profitability?days=${days || 30}`); },
+  profitabilityAnalyze(menuItemId) { return this.post('/api/inventory/profitability/analyze', { menu_item_id: menuItemId }); },
+
+  // Reorder & Supply Alerts
+  reorderRequests(params) { return this.get('/api/reorder/requests' + (params ? '?' + new URLSearchParams(params) : '')); },
+  reorderPending() { return this.get('/api/reorder/requests/pending'); },
+  reorderRequest(id) { return this.get(`/api/reorder/requests/${id}`); },
+  approveReorder(id, data) { return this.patch(`/api/reorder/requests/${id}/approve`, data); },
+  rejectReorder(id, data) { return this.patch(`/api/reorder/requests/${id}/reject`, data); },
+  modifyReorder(id, data) { return this.patch(`/api/reorder/requests/${id}/modify`, data); },
+  bulkApproveReorder(data) { return this.post('/api/reorder/bulk-approve', data); },
+  triggerSupplyCheck() { return this.post('/api/reorder/check'); },
+  reorderDashboard() { return this.get('/api/reorder/dashboard'); },
+  notificationPrefs(employeeId) { return this.get(`/api/reorder/preferences/${employeeId}`); },
+  updateNotificationPrefs(employeeId, data) { return this.put(`/api/reorder/preferences/${employeeId}`, data); },
 
   // Suppliers
   suppliers() { return this.get('/api/suppliers'); },
@@ -193,4 +209,136 @@ const API = {
   updateSetting(key, value) { return this.put(`/api/settings/${key}`, { value }); },
   openRegister(data) { return this.post('/api/settings/registers/open', data); },
   closeRegister(data) { return this.post('/api/settings/registers/close', data); },
+
+  // Demo
+  startDemo() { return this.post('/api/demo/start'); },
+  cleanupDemo() { return this.post('/api/demo/cleanup'); },
+
+  // ============================================================
+  // BACK OFFICE & BUSINESS INTELLIGENCE
+  // ============================================================
+
+  // Accounting
+  chartOfAccounts(params) { return this.get('/api/accounting/accounts' + (params ? '?' + new URLSearchParams(params) : '')); },
+  createAccount(data) { return this.post('/api/accounting/accounts', data); },
+  updateAccount(id, data) { return this.put(`/api/accounting/accounts/${id}`, data); },
+  trialBalance(asOf) { return this.get(`/api/accounting/trial-balance${asOf ? '?as_of_date=' + asOf : ''}`); },
+  journalEntries(params) { return this.get('/api/accounting/journal-entries' + (params ? '?' + new URLSearchParams(params) : '')); },
+  createJournalEntry(data) { return this.post('/api/accounting/journal-entries', data); },
+  postJournalEntry(id, postedBy) { return this.post(`/api/accounting/journal-entries/${id}/post`, { posted_by: postedBy }); },
+  reverseJournalEntry(id, createdBy) { return this.post(`/api/accounting/journal-entries/${id}/reverse`, { created_by: createdBy }); },
+  incomeStatement(params) { return this.get('/api/accounting/income-statement' + (params ? '?' + new URLSearchParams(params) : '')); },
+  balanceSheet(asOf) { return this.get(`/api/accounting/balance-sheet${asOf ? '?as_of_date=' + asOf : ''}`); },
+  cashFlow(params) { return this.get('/api/accounting/cash-flow' + (params ? '?' + new URLSearchParams(params) : '')); },
+  fiscalPeriods() { return this.get('/api/accounting/fiscal-periods'); },
+  createFiscalPeriod(data) { return this.post('/api/accounting/fiscal-periods', data); },
+  closeFiscalPeriod(id, closedBy) { return this.post(`/api/accounting/fiscal-periods/${id}/close`, { closed_by: closedBy }); },
+  budgets() { return this.get('/api/accounting/budgets'); },
+  createBudget(data) { return this.post('/api/accounting/budgets', data); },
+  budgetVsActual(params) { return this.get('/api/accounting/budget-vs-actual' + (params ? '?' + new URLSearchParams(params) : '')); },
+  autoJournalDailySales(date) { return this.post('/api/accounting/auto-journal/daily-sales', { date }); },
+
+  // Payroll
+  payrollRuns(params) { return this.get('/api/payroll/runs' + (params ? '?' + new URLSearchParams(params) : '')); },
+  payrollRun(id) { return this.get(`/api/payroll/runs/${id}`); },
+  createPayrollRun(data) { return this.post('/api/payroll/runs', data); },
+  approvePayroll(id, approvedBy) { return this.post(`/api/payroll/runs/${id}/approve`, { approved_by: approvedBy }); },
+  processPayroll(id, processedBy) { return this.post(`/api/payroll/runs/${id}/process`, { processed_by: processedBy }); },
+  tipPools() { return this.get('/api/payroll/tip-pools'); },
+  createTipPool(data) { return this.post('/api/payroll/tip-pools', data); },
+  tipPool(id) { return this.get(`/api/payroll/tip-pools/${id}`); },
+  taxRates() { return this.get('/api/payroll/tax-rates'); },
+  updateTaxRate(id, data) { return this.put(`/api/payroll/tax-rates/${id}`, data); },
+  payrollSummary(params) { return this.get('/api/payroll/summary' + (params ? '?' + new URLSearchParams(params) : '')); },
+  employeePayHistory(id) { return this.get(`/api/payroll/employee/${id}`); },
+
+  // AP Automation
+  apInvoices(params) { return this.get('/api/ap/invoices' + (params ? '?' + new URLSearchParams(params) : '')); },
+  apInvoice(id) { return this.get(`/api/ap/invoices/${id}`); },
+  createApInvoice(data) { return this.post('/api/ap/invoices', data); },
+  approveApInvoice(id, approvedBy) { return this.post(`/api/ap/invoices/${id}/approve`, { approved_by: approvedBy }); },
+  rejectApInvoice(id, reason) { return this.post(`/api/ap/invoices/${id}/reject`, { reason }); },
+  payApInvoice(id, data) { return this.post(`/api/ap/invoices/${id}/pay`, data); },
+  apAging() { return this.get('/api/ap/aging'); },
+  apDashboard() { return this.get('/api/ap/dashboard'); },
+  apWorkflows() { return this.get('/api/ap/workflows'); },
+  createApWorkflow(data) { return this.post('/api/ap/workflows', data); },
+
+  // Banking
+  bankAccounts() { return this.get('/api/banking/accounts'); },
+  createBankAccount(data) { return this.post('/api/banking/accounts', data); },
+  updateBankAccount(id, data) { return this.put(`/api/banking/accounts/${id}`, data); },
+  bankTransactions(accountId, params) { return this.get(`/api/banking/accounts/${accountId}/transactions` + (params ? '?' + new URLSearchParams(params) : '')); },
+  addBankTransaction(accountId, data) { return this.post(`/api/banking/accounts/${accountId}/transactions`, data); },
+  importBankTransactions(accountId, transactions) { return this.post(`/api/banking/accounts/${accountId}/import`, { transactions }); },
+  matchBankTransaction(txId, entityType, entityId) { return this.post(`/api/banking/transactions/${txId}/match`, { entity_type: entityType, entity_id: entityId }); },
+  autoMatchBank(accountId) { return this.get(`/api/banking/auto-match/${accountId}`); },
+  reconcileBank(accountId, data) { return this.post(`/api/banking/accounts/${accountId}/reconcile`, data); },
+  bankReconciliations(accountId) { return this.get(`/api/banking/accounts/${accountId}/reconciliations`); },
+  bankingDashboard() { return this.get('/api/banking/dashboard'); },
+
+  // Multi-Location
+  locations() { return this.get('/api/locations'); },
+  location(id) { return this.get(`/api/locations/${id}`); },
+  createLocation(data) { return this.post('/api/locations', data); },
+  updateLocation(id, data) { return this.put(`/api/locations/${id}`, data); },
+  assignLocationStaff(locId, data) { return this.post(`/api/locations/${locId}/staff`, data); },
+  removeLocationStaff(locId, empId) { return this.del(`/api/locations/${locId}/staff/${empId}`); },
+  compareLocationSales(params) { return this.get('/api/locations/compare/sales' + (params ? '?' + new URLSearchParams(params) : '')); },
+  compareLocationInventory() { return this.get('/api/locations/compare/inventory'); },
+  locationTransfers() { return this.get('/api/locations/transfers'); },
+  createLocationTransfer(data) { return this.post('/api/locations/transfers', data); },
+
+  // Training LMS
+  trainingCourses(params) { return this.get('/api/training/courses' + (params ? '?' + new URLSearchParams(params) : '')); },
+  trainingCourse(id) { return this.get(`/api/training/courses/${id}`); },
+  createTrainingCourse(data) { return this.post('/api/training/courses', data); },
+  updateTrainingCourse(id, data) { return this.put(`/api/training/courses/${id}`, data); },
+  createLesson(courseId, data) { return this.post(`/api/training/courses/${courseId}/lessons`, data); },
+  updateLesson(id, data) { return this.put(`/api/training/lessons/${id}`, data); },
+  lessonQuiz(lessonId) { return this.get(`/api/training/lessons/${lessonId}/quiz`); },
+  addQuizQuestion(lessonId, data) { return this.post(`/api/training/lessons/${lessonId}/quiz`, data); },
+  trainingEnrollments(params) { return this.get('/api/training/enrollments' + (params ? '?' + new URLSearchParams(params) : '')); },
+  enrollEmployee(data) { return this.post('/api/training/enroll', data); },
+  bulkEnroll(data) { return this.post('/api/training/enroll/bulk', data); },
+  completeLesson(enrollmentId, data) { return this.post(`/api/training/enrollments/${enrollmentId}/complete-lesson`, data); },
+  certifications(params) { return this.get('/api/training/certifications' + (params ? '?' + new URLSearchParams(params) : '')); },
+  trainingDashboard() { return this.get('/api/training/dashboard'); },
+
+  // Catering & Events
+  cateringEvents(params) { return this.get('/api/catering/events' + (params ? '?' + new URLSearchParams(params) : '')); },
+  cateringEvent(id) { return this.get(`/api/catering/events/${id}`); },
+  createCateringEvent(data) { return this.post('/api/catering/events', data); },
+  updateCateringEvent(id, data) { return this.put(`/api/catering/events/${id}`, data); },
+  addCateringItems(eventId, items) { return this.post(`/api/catering/events/${eventId}/items`, { items }); },
+  assignCateringStaff(eventId, assignments) { return this.post(`/api/catering/events/${eventId}/staff`, { assignments }); },
+  cateringPackages() { return this.get('/api/catering/packages'); },
+  createCateringPackage(data) { return this.post('/api/catering/packages', data); },
+  cateringDashboard() { return this.get('/api/catering/dashboard'); },
+  cateringCalendar(month, year) { return this.get(`/api/catering/calendar?month=${month}&year=${year}`); },
+
+  // Marketing
+  marketingCampaigns(params) { return this.get('/api/marketing/campaigns' + (params ? '?' + new URLSearchParams(params) : '')); },
+  marketingCampaign(id) { return this.get(`/api/marketing/campaigns/${id}`); },
+  createCampaign(data) { return this.post('/api/marketing/campaigns', data); },
+  updateCampaign(id, data) { return this.put(`/api/marketing/campaigns/${id}`, data); },
+  sendCampaign(id) { return this.post(`/api/marketing/campaigns/${id}/send`); },
+  promotions(params) { return this.get('/api/marketing/promotions' + (params ? '?' + new URLSearchParams(params) : '')); },
+  createPromotion(data) { return this.post('/api/marketing/promotions', data); },
+  validatePromo(data) { return this.post('/api/marketing/promotions/validate', data); },
+  applyPromo(id, data) { return this.post(`/api/marketing/promotions/${id}/apply`, data); },
+  emailLists() { return this.get('/api/marketing/email-lists'); },
+  createEmailList(data) { return this.post('/api/marketing/email-lists', data); },
+  subscribeToList(listId, data) { return this.post(`/api/marketing/email-lists/${listId}/subscribe`, data); },
+  autoPopulateList(listId, segment) { return this.post(`/api/marketing/email-lists/${listId}/auto-populate`, { segment }); },
+  marketingDashboard() { return this.get('/api/marketing/dashboard'); },
+
+  // Forecasting & Intelligence
+  salesForecast(days) { return this.get(`/api/forecasting/sales?days_ahead=${days || 7}`); },
+  forecastAccuracy() { return this.get('/api/forecasting/sales/accuracy'); },
+  laborForecast(date) { return this.get(`/api/forecasting/labor${date ? '?date=' + date : ''}`); },
+  detectAnomalies() { return this.post('/api/forecasting/detect-anomalies'); },
+  anomalies(params) { return this.get('/api/forecasting/anomalies' + (params ? '?' + new URLSearchParams(params) : '')); },
+  acknowledgeAnomaly(id, by) { return this.patch(`/api/forecasting/anomalies/${id}/acknowledge`, { acknowledged_by: by }); },
+  forecastingDashboard() { return this.get('/api/forecasting/dashboard'); },
 };

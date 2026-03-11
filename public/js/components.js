@@ -1,5 +1,5 @@
 /* ============================================================
-   NEXUS POS - Reusable UI Components
+   VENUECORE - Reusable UI Components
    ============================================================ */
 const UI = {
   // Toast notification system

@@ -4,6 +4,7 @@ const cors = require('cors');
 const path = require('path');
 const { initializeSchema } = require('./db/schema');
 const { errorHandler } = require('./middleware/errorHandler');
+const { startMonitor, setBroadcast } = require('./services/supply-monitor');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -25,7 +26,7 @@ function broadcast(data) {
 }
 app.locals.broadcast = broadcast;
 
-// API Routes
+// API Routes - Core Operations
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/menu', require('./routes/menu'));
 app.use('/api/pos', require('./routes/pos'));
@@ -43,6 +44,19 @@ app.use('/api/reports', require('./routes/reports'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/ai', require('./routes/ai'));
 app.use('/api/settings', require('./routes/settings'));
+app.use('/api/demo', require('./routes/demo'));
+
+// API Routes - Business Intelligence & Back Office
+app.use('/api/accounting', require('./routes/accounting'));
+app.use('/api/payroll', require('./routes/payroll'));
+app.use('/api/ap', require('./routes/ap-automation'));
+app.use('/api/banking', require('./routes/banking'));
+app.use('/api/locations', require('./routes/locations'));
+app.use('/api/training', require('./routes/training'));
+app.use('/api/catering', require('./routes/catering'));
+app.use('/api/marketing', require('./routes/marketing'));
+app.use('/api/forecasting', require('./routes/forecasting'));
+app.use('/api/reorder', require('./routes/reorder'));
 
 // SSE endpoint
 app.get('/api/events', (req, res) => {
@@ -65,10 +79,15 @@ app.use(errorHandler);
 
 // Initialize DB and start
 initializeSchema();
+
+// Start supply monitor (checks inventory every 15 minutes)
+setBroadcast(broadcast);
+startMonitor(15);
+
 app.listen(PORT, () => {
   console.log(`
   ╔══════════════════════════════════════════════╗
-  ║          NEXUS POS SYSTEM v1.0               ║
+  ║         VENUECORE POS SYSTEM v2.0              ║
   ║          http://localhost:${PORT}               ║
   ╚══════════════════════════════════════════════╝
   `);
