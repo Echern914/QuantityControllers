@@ -1,8 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const { getDb } = require('../db/database');
+const { authenticate } = require('../middleware/auth');
 const { logWaste } = require('../services/deduction');
 
+// All routes require authentication
+router.use(authenticate);
 // GET /api/inventory - list all stock
 router.get('/', (req, res) => {
   const db = getDb();

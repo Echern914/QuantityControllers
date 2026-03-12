@@ -7,6 +7,10 @@ const express = require('express');
 const router = express.Router();
 const { getDb } = require('../db/database');
 const { deductForOrder } = require('../services/deduction');
+const { authenticate } = require('../middleware/auth');
+
+// All routes require authentication
+router.use(authenticate);
 
 // ============================================================
 // LIVE STOCK CARDS - Real-time ingredient status

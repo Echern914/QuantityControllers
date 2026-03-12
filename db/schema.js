@@ -14,7 +14,8 @@ function initializeSchema() {
       color TEXT DEFAULT '#6366f1',
       icon TEXT DEFAULT 'box',
       display_order INTEGER DEFAULT 0,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
     CREATE TABLE IF NOT EXISTS suppliers (
@@ -44,8 +45,9 @@ function initializeSchema() {
       last_order_date DATETIME,
       active INTEGER DEFAULT 1,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (category_id) REFERENCES categories(id),
-      FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL,
+      FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE SET NULL
     );
 
     CREATE TABLE IF NOT EXISTS inventory (
@@ -62,8 +64,9 @@ function initializeSchema() {
       opened_at DATETIME,
       emptied_at DATETIME,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (ingredient_id) REFERENCES ingredients(id),
-      FOREIGN KEY (purchase_order_id) REFERENCES purchase_orders(id)
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (ingredient_id) REFERENCES ingredients(id) ON DELETE CASCADE,
+      FOREIGN KEY (purchase_order_id) REFERENCES purchase_orders(id) ON DELETE SET NULL
     );
 
     CREATE INDEX IF NOT EXISTS idx_inventory_ingredient ON inventory(ingredient_id);
@@ -80,7 +83,8 @@ function initializeSchema() {
       icon TEXT DEFAULT 'utensils',
       display_order INTEGER DEFAULT 0,
       active INTEGER DEFAULT 1,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
     CREATE TABLE IF NOT EXISTS menu_items (
@@ -100,7 +104,8 @@ function initializeSchema() {
       clover_item_id TEXT,
       active INTEGER DEFAULT 1,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (category_id) REFERENCES menu_categories(id)
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (category_id) REFERENCES menu_categories(id) ON DELETE SET NULL
     );
 
     CREATE TABLE IF NOT EXISTS recipes (
@@ -110,7 +115,7 @@ function initializeSchema() {
       quantity REAL NOT NULL,
       unit TEXT NOT NULL DEFAULT 'oz',
       FOREIGN KEY (menu_item_id) REFERENCES menu_items(id) ON DELETE CASCADE,
-      FOREIGN KEY (ingredient_id) REFERENCES ingredients(id)
+      FOREIGN KEY (ingredient_id) REFERENCES ingredients(id) ON DELETE CASCADE
     );
 
     CREATE TABLE IF NOT EXISTS menu_modifiers (
@@ -119,7 +124,8 @@ function initializeSchema() {
       category TEXT DEFAULT 'General',
       price_adjustment REAL DEFAULT 0,
       available INTEGER DEFAULT 1,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
     CREATE TABLE IF NOT EXISTS menu_item_modifiers (
@@ -146,7 +152,7 @@ function initializeSchema() {
       menu_item_id INTEGER NOT NULL,
       quantity INTEGER DEFAULT 1,
       FOREIGN KEY (combo_id) REFERENCES combos(id) ON DELETE CASCADE,
-      FOREIGN KEY (menu_item_id) REFERENCES menu_items(id)
+      FOREIGN KEY (menu_item_id) REFERENCES menu_items(id) ON DELETE CASCADE
     );
 
     CREATE TABLE IF NOT EXISTS pricing_rules (
@@ -164,8 +170,8 @@ function initializeSchema() {
       days_of_week TEXT DEFAULT '[]',
       active INTEGER DEFAULT 1,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (menu_item_id) REFERENCES menu_items(id),
-      FOREIGN KEY (category_id) REFERENCES menu_categories(id)
+      FOREIGN KEY (menu_item_id) REFERENCES menu_items(id) ON DELETE CASCADE,
+      FOREIGN KEY (category_id) REFERENCES menu_categories(id) ON DELETE SET NULL
     );
 
     -- ============================================================
@@ -194,7 +200,7 @@ function initializeSchema() {
       employee_id INTEGER NOT NULL,
       expires_at DATETIME NOT NULL,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (employee_id) REFERENCES employees(id)
+      FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
     );
 
     CREATE TABLE IF NOT EXISTS time_entries (
@@ -208,7 +214,8 @@ function initializeSchema() {
       tips REAL DEFAULT 0,
       notes TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (employee_id) REFERENCES employees(id)
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
     );
 
     CREATE TABLE IF NOT EXISTS shifts (
@@ -221,7 +228,8 @@ function initializeSchema() {
       notes TEXT,
       published INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (employee_id) REFERENCES employees(id)
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
     );
 
     -- ============================================================
@@ -241,7 +249,8 @@ function initializeSchema() {
       current_order_id INTEGER,
       server_id INTEGER,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (server_id) REFERENCES employees(id)
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (server_id) REFERENCES employees(id) ON DELETE SET NULL
     );
 
     CREATE TABLE IF NOT EXISTS reservations (
@@ -258,8 +267,9 @@ function initializeSchema() {
       status TEXT DEFAULT 'confirmed',
       notes TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (customer_id) REFERENCES customers(id),
-      FOREIGN KEY (table_id) REFERENCES tables(id)
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL,
+      FOREIGN KEY (table_id) REFERENCES tables(id) ON DELETE SET NULL
     );
 
     -- ============================================================
@@ -287,10 +297,11 @@ function initializeSchema() {
       opened_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       closed_at DATETIME,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (table_id) REFERENCES tables(id),
-      FOREIGN KEY (employee_id) REFERENCES employees(id),
-      FOREIGN KEY (customer_id) REFERENCES customers(id),
-      FOREIGN KEY (tab_id) REFERENCES tabs(id)
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (table_id) REFERENCES tables(id) ON DELETE SET NULL,
+      FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE SET NULL,
+      FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL,
+      FOREIGN KEY (tab_id) REFERENCES tabs(id) ON DELETE SET NULL
     );
 
     CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
@@ -314,8 +325,9 @@ function initializeSchema() {
       voided INTEGER DEFAULT 0,
       void_reason TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
-      FOREIGN KEY (menu_item_id) REFERENCES menu_items(id)
+      FOREIGN KEY (menu_item_id) REFERENCES menu_items(id) ON DELETE SET NULL
     );
 
     CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id);
@@ -333,8 +345,9 @@ function initializeSchema() {
       employee_id INTEGER,
       refunded INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (order_id) REFERENCES orders(id),
-      FOREIGN KEY (employee_id) REFERENCES employees(id)
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE RESTRICT,
+      FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE SET NULL
     );
 
     CREATE TABLE IF NOT EXISTS tabs (
@@ -348,8 +361,10 @@ function initializeSchema() {
       total REAL DEFAULT 0,
       opened_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       closed_at DATETIME,
-      FOREIGN KEY (customer_id) REFERENCES customers(id),
-      FOREIGN KEY (employee_id) REFERENCES employees(id)
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL,
+      FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE SET NULL
     );
 
     -- ============================================================
@@ -367,8 +382,10 @@ function initializeSchema() {
       completed_at DATETIME,
       estimated_prep_minutes INTEGER DEFAULT 5,
       bump_count INTEGER DEFAULT 0,
-      FOREIGN KEY (order_id) REFERENCES orders(id),
-      FOREIGN KEY (order_item_id) REFERENCES order_items(id)
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+      FOREIGN KEY (order_item_id) REFERENCES order_items(id) ON DELETE CASCADE
     );
 
     CREATE INDEX IF NOT EXISTS idx_kitchen_status ON kitchen_queue(status);
@@ -391,6 +408,7 @@ function initializeSchema() {
       vip_tier TEXT DEFAULT 'regular',
       favorite_items TEXT DEFAULT '[]',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       last_visit_at DATETIME
     );
 
@@ -409,8 +427,9 @@ function initializeSchema() {
       received_at DATETIME,
       notes TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (supplier_id) REFERENCES suppliers(id),
-      FOREIGN KEY (ordered_by) REFERENCES employees(id)
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE RESTRICT,
+      FOREIGN KEY (ordered_by) REFERENCES employees(id) ON DELETE SET NULL
     );
 
     CREATE TABLE IF NOT EXISTS purchase_order_items (
@@ -422,7 +441,7 @@ function initializeSchema() {
       unit_cost REAL DEFAULT 0,
       total_cost REAL DEFAULT 0,
       FOREIGN KEY (purchase_order_id) REFERENCES purchase_orders(id) ON DELETE CASCADE,
-      FOREIGN KEY (ingredient_id) REFERENCES ingredients(id)
+      FOREIGN KEY (ingredient_id) REFERENCES ingredients(id) ON DELETE CASCADE
     );
 
     -- ============================================================
@@ -443,11 +462,11 @@ function initializeSchema() {
       clover_order_id TEXT,
       notes TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (ingredient_id) REFERENCES ingredients(id),
-      FOREIGN KEY (inventory_id) REFERENCES inventory(id),
-      FOREIGN KEY (menu_item_id) REFERENCES menu_items(id),
-      FOREIGN KEY (order_id) REFERENCES orders(id),
-      FOREIGN KEY (employee_id) REFERENCES employees(id)
+      FOREIGN KEY (ingredient_id) REFERENCES ingredients(id) ON DELETE SET NULL,
+      FOREIGN KEY (inventory_id) REFERENCES inventory(id) ON DELETE SET NULL,
+      FOREIGN KEY (menu_item_id) REFERENCES menu_items(id) ON DELETE SET NULL,
+      FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE SET NULL,
+      FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE SET NULL
     );
 
     CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions(type);
@@ -464,9 +483,9 @@ function initializeSchema() {
       employee_id INTEGER,
       notes TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (ingredient_id) REFERENCES ingredients(id),
-      FOREIGN KEY (inventory_id) REFERENCES inventory(id),
-      FOREIGN KEY (employee_id) REFERENCES employees(id)
+      FOREIGN KEY (ingredient_id) REFERENCES ingredients(id) ON DELETE SET NULL,
+      FOREIGN KEY (inventory_id) REFERENCES inventory(id) ON DELETE SET NULL,
+      FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE SET NULL
     );
 
     -- ============================================================
@@ -482,7 +501,7 @@ function initializeSchema() {
       acknowledged INTEGER DEFAULT 0,
       acknowledged_by INTEGER,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (acknowledged_by) REFERENCES employees(id)
+      FOREIGN KEY (acknowledged_by) REFERENCES employees(id) ON DELETE SET NULL
     );
 
     CREATE TABLE IF NOT EXISTS notifications (
@@ -495,7 +514,7 @@ function initializeSchema() {
       target_employee_id INTEGER,
       read_at DATETIME,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (target_employee_id) REFERENCES employees(id)
+      FOREIGN KEY (target_employee_id) REFERENCES employees(id) ON DELETE SET NULL
     );
 
     -- ============================================================
@@ -526,11 +545,11 @@ function initializeSchema() {
       sms_sent INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (ingredient_id) REFERENCES ingredients(id),
-      FOREIGN KEY (supplier_id) REFERENCES suppliers(id),
-      FOREIGN KEY (approved_by) REFERENCES employees(id),
-      FOREIGN KEY (rejected_by) REFERENCES employees(id),
-      FOREIGN KEY (purchase_order_id) REFERENCES purchase_orders(id)
+      FOREIGN KEY (ingredient_id) REFERENCES ingredients(id) ON DELETE CASCADE,
+      FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE SET NULL,
+      FOREIGN KEY (approved_by) REFERENCES employees(id) ON DELETE SET NULL,
+      FOREIGN KEY (rejected_by) REFERENCES employees(id) ON DELETE SET NULL,
+      FOREIGN KEY (purchase_order_id) REFERENCES purchase_orders(id) ON DELETE SET NULL
     );
 
     CREATE INDEX IF NOT EXISTS idx_reorder_requests_status ON reorder_requests(status);
@@ -551,7 +570,7 @@ function initializeSchema() {
       low_stock_threshold REAL DEFAULT 0.20,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (employee_id) REFERENCES employees(id)
+      FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
     );
 
     CREATE UNIQUE INDEX IF NOT EXISTS idx_notification_prefs_employee ON notification_preferences(employee_id);
@@ -570,7 +589,7 @@ function initializeSchema() {
       expected_cash REAL,
       cash_difference REAL,
       status TEXT DEFAULT 'open',
-      FOREIGN KEY (employee_id) REFERENCES employees(id)
+      FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE SET NULL
     );
 
     CREATE TABLE IF NOT EXISTS daily_reports (
@@ -590,7 +609,7 @@ function initializeSchema() {
       food_cost REAL DEFAULT 0,
       generated_at DATETIME,
       generated_by INTEGER,
-      FOREIGN KEY (generated_by) REFERENCES employees(id)
+      FOREIGN KEY (generated_by) REFERENCES employees(id) ON DELETE SET NULL
     );
 
     -- ============================================================
@@ -603,7 +622,7 @@ function initializeSchema() {
       response TEXT,
       context TEXT DEFAULT '{}',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (employee_id) REFERENCES employees(id)
+      FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE SET NULL
     );
 
     CREATE TABLE IF NOT EXISTS settings (
@@ -623,7 +642,7 @@ function initializeSchema() {
       notes TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       completed_at DATETIME,
-      FOREIGN KEY (employee_id) REFERENCES employees(id)
+      FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE SET NULL
     );
 
     CREATE TABLE IF NOT EXISTS inventory_count_items (
@@ -636,7 +655,7 @@ function initializeSchema() {
       variance_cost REAL DEFAULT 0,
       notes TEXT,
       FOREIGN KEY (count_id) REFERENCES inventory_counts(id) ON DELETE CASCADE,
-      FOREIGN KEY (ingredient_id) REFERENCES ingredients(id)
+      FOREIGN KEY (ingredient_id) REFERENCES ingredients(id) ON DELETE CASCADE
     );
 
     -- ============================================================
@@ -654,9 +673,9 @@ function initializeSchema() {
       notes TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       completed_at DATETIME,
-      FOREIGN KEY (ingredient_id) REFERENCES ingredients(id),
-      FOREIGN KEY (requested_by) REFERENCES employees(id),
-      FOREIGN KEY (approved_by) REFERENCES employees(id)
+      FOREIGN KEY (ingredient_id) REFERENCES ingredients(id) ON DELETE CASCADE,
+      FOREIGN KEY (requested_by) REFERENCES employees(id) ON DELETE SET NULL,
+      FOREIGN KEY (approved_by) REFERENCES employees(id) ON DELETE SET NULL
     );
 
     -- ============================================================
@@ -672,7 +691,7 @@ function initializeSchema() {
       closed_by INTEGER,
       closed_at DATETIME,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (closed_by) REFERENCES employees(id)
+      FOREIGN KEY (closed_by) REFERENCES employees(id) ON DELETE SET NULL
     );
 
     CREATE TABLE IF NOT EXISTS chart_of_accounts (
@@ -687,7 +706,7 @@ function initializeSchema() {
       is_system INTEGER DEFAULT 0,
       active INTEGER DEFAULT 1,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (parent_id) REFERENCES chart_of_accounts(id)
+      FOREIGN KEY (parent_id) REFERENCES chart_of_accounts(id) ON DELETE SET NULL
     );
 
     CREATE INDEX IF NOT EXISTS idx_coa_type ON chart_of_accounts(account_type);
@@ -712,11 +731,11 @@ function initializeSchema() {
       location_id INTEGER,
       created_by INTEGER,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (fiscal_period_id) REFERENCES fiscal_periods(id),
-      FOREIGN KEY (approved_by) REFERENCES employees(id),
-      FOREIGN KEY (posted_by) REFERENCES employees(id),
-      FOREIGN KEY (created_by) REFERENCES employees(id),
-      FOREIGN KEY (reversal_of) REFERENCES journal_entries(id)
+      FOREIGN KEY (fiscal_period_id) REFERENCES fiscal_periods(id) ON DELETE RESTRICT,
+      FOREIGN KEY (approved_by) REFERENCES employees(id) ON DELETE SET NULL,
+      FOREIGN KEY (posted_by) REFERENCES employees(id) ON DELETE SET NULL,
+      FOREIGN KEY (created_by) REFERENCES employees(id) ON DELETE SET NULL,
+      FOREIGN KEY (reversal_of) REFERENCES journal_entries(id) ON DELETE SET NULL
     );
 
     CREATE INDEX IF NOT EXISTS idx_je_date ON journal_entries(entry_date);
@@ -732,7 +751,7 @@ function initializeSchema() {
       credit REAL DEFAULT 0,
       location_id INTEGER,
       FOREIGN KEY (journal_entry_id) REFERENCES journal_entries(id) ON DELETE CASCADE,
-      FOREIGN KEY (account_id) REFERENCES chart_of_accounts(id)
+      FOREIGN KEY (account_id) REFERENCES chart_of_accounts(id) ON DELETE RESTRICT
     );
 
     CREATE INDEX IF NOT EXISTS idx_jel_entry ON journal_entry_lines(journal_entry_id);
@@ -748,8 +767,8 @@ function initializeSchema() {
       location_id INTEGER,
       notes TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (fiscal_period_id) REFERENCES fiscal_periods(id),
-      FOREIGN KEY (account_id) REFERENCES chart_of_accounts(id)
+      FOREIGN KEY (fiscal_period_id) REFERENCES fiscal_periods(id) ON DELETE SET NULL,
+      FOREIGN KEY (account_id) REFERENCES chart_of_accounts(id) ON DELETE RESTRICT
     );
 
     -- ============================================================
@@ -782,11 +801,11 @@ function initializeSchema() {
       created_by INTEGER,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (supplier_id) REFERENCES suppliers(id),
-      FOREIGN KEY (purchase_order_id) REFERENCES purchase_orders(id),
-      FOREIGN KEY (approved_by) REFERENCES employees(id),
-      FOREIGN KEY (gl_account_id) REFERENCES chart_of_accounts(id),
-      FOREIGN KEY (created_by) REFERENCES employees(id)
+      FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE RESTRICT,
+      FOREIGN KEY (purchase_order_id) REFERENCES purchase_orders(id) ON DELETE SET NULL,
+      FOREIGN KEY (approved_by) REFERENCES employees(id) ON DELETE SET NULL,
+      FOREIGN KEY (gl_account_id) REFERENCES chart_of_accounts(id) ON DELETE RESTRICT,
+      FOREIGN KEY (created_by) REFERENCES employees(id) ON DELETE SET NULL
     );
 
     CREATE INDEX IF NOT EXISTS idx_ap_supplier ON ap_invoices(supplier_id);
@@ -803,8 +822,8 @@ function initializeSchema() {
       unit_price REAL DEFAULT 0,
       total REAL DEFAULT 0,
       FOREIGN KEY (invoice_id) REFERENCES ap_invoices(id) ON DELETE CASCADE,
-      FOREIGN KEY (account_id) REFERENCES chart_of_accounts(id),
-      FOREIGN KEY (ingredient_id) REFERENCES ingredients(id)
+      FOREIGN KEY (account_id) REFERENCES chart_of_accounts(id) ON DELETE RESTRICT,
+      FOREIGN KEY (ingredient_id) REFERENCES ingredients(id) ON DELETE SET NULL
     );
 
     CREATE TABLE IF NOT EXISTS ap_payments (
@@ -818,9 +837,9 @@ function initializeSchema() {
       notes TEXT,
       created_by INTEGER,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (invoice_id) REFERENCES ap_invoices(id),
-      FOREIGN KEY (bank_account_id) REFERENCES bank_accounts(id),
-      FOREIGN KEY (created_by) REFERENCES employees(id)
+      FOREIGN KEY (invoice_id) REFERENCES ap_invoices(id) ON DELETE RESTRICT,
+      FOREIGN KEY (bank_account_id) REFERENCES bank_accounts(id) ON DELETE RESTRICT,
+      FOREIGN KEY (created_by) REFERENCES employees(id) ON DELETE SET NULL
     );
 
     CREATE TABLE IF NOT EXISTS approval_workflows (
@@ -852,7 +871,7 @@ function initializeSchema() {
       active INTEGER DEFAULT 1,
       location_id INTEGER,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (gl_account_id) REFERENCES chart_of_accounts(id)
+      FOREIGN KEY (gl_account_id) REFERENCES chart_of_accounts(id) ON DELETE RESTRICT
     );
 
     CREATE TABLE IF NOT EXISTS bank_transactions (
@@ -870,7 +889,7 @@ function initializeSchema() {
       reconciled INTEGER DEFAULT 0,
       reconciliation_id INTEGER,
       imported_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (bank_account_id) REFERENCES bank_accounts(id)
+      FOREIGN KEY (bank_account_id) REFERENCES bank_accounts(id) ON DELETE RESTRICT
     );
 
     CREATE INDEX IF NOT EXISTS idx_bank_tx_account ON bank_transactions(bank_account_id);
@@ -888,8 +907,8 @@ function initializeSchema() {
       completed_by INTEGER,
       completed_at DATETIME,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (bank_account_id) REFERENCES bank_accounts(id),
-      FOREIGN KEY (completed_by) REFERENCES employees(id)
+      FOREIGN KEY (bank_account_id) REFERENCES bank_accounts(id) ON DELETE RESTRICT,
+      FOREIGN KEY (completed_by) REFERENCES employees(id) ON DELETE SET NULL
     );
 
     -- ============================================================
@@ -914,8 +933,8 @@ function initializeSchema() {
       processed_at DATETIME,
       notes TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (approved_by) REFERENCES employees(id),
-      FOREIGN KEY (processed_by) REFERENCES employees(id)
+      FOREIGN KEY (approved_by) REFERENCES employees(id) ON DELETE SET NULL,
+      FOREIGN KEY (processed_by) REFERENCES employees(id) ON DELETE SET NULL
     );
 
     CREATE TABLE IF NOT EXISTS payroll_items (
@@ -942,7 +961,7 @@ function initializeSchema() {
       net_pay REAL DEFAULT 0,
       payment_method TEXT DEFAULT 'direct_deposit',
       FOREIGN KEY (payroll_run_id) REFERENCES payroll_runs(id) ON DELETE CASCADE,
-      FOREIGN KEY (employee_id) REFERENCES employees(id)
+      FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE RESTRICT
     );
 
     CREATE INDEX IF NOT EXISTS idx_payroll_items_run ON payroll_items(payroll_run_id);
@@ -971,7 +990,7 @@ function initializeSchema() {
       status TEXT DEFAULT 'pending',
       created_by INTEGER,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (created_by) REFERENCES employees(id)
+      FOREIGN KEY (created_by) REFERENCES employees(id) ON DELETE SET NULL
     );
 
     CREATE TABLE IF NOT EXISTS tip_pool_distributions (
@@ -983,7 +1002,7 @@ function initializeSchema() {
       role TEXT,
       weight REAL DEFAULT 1.0,
       FOREIGN KEY (tip_pool_id) REFERENCES tip_pools(id) ON DELETE CASCADE,
-      FOREIGN KEY (employee_id) REFERENCES employees(id)
+      FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
     );
 
     CREATE TABLE IF NOT EXISTS employee_documents (
@@ -997,8 +1016,8 @@ function initializeSchema() {
       verified_by INTEGER,
       notes TEXT,
       uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (employee_id) REFERENCES employees(id),
-      FOREIGN KEY (verified_by) REFERENCES employees(id)
+      FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE,
+      FOREIGN KEY (verified_by) REFERENCES employees(id) ON DELETE SET NULL
     );
 
     -- ============================================================
@@ -1025,7 +1044,7 @@ function initializeSchema() {
       stripe_account_id TEXT,
       settings TEXT DEFAULT '{}',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (manager_id) REFERENCES employees(id)
+      FOREIGN KEY (manager_id) REFERENCES employees(id) ON DELETE SET NULL
     );
 
     CREATE TABLE IF NOT EXISTS location_employees (
@@ -1036,8 +1055,8 @@ function initializeSchema() {
       is_primary INTEGER DEFAULT 1,
       start_date DATE,
       end_date DATE,
-      FOREIGN KEY (location_id) REFERENCES locations(id),
-      FOREIGN KEY (employee_id) REFERENCES employees(id),
+      FOREIGN KEY (location_id) REFERENCES locations(id) ON DELETE CASCADE,
+      FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE,
       UNIQUE(location_id, employee_id)
     );
 
@@ -1048,8 +1067,8 @@ function initializeSchema() {
       par_level REAL DEFAULT 0,
       current_stock REAL DEFAULT 0,
       last_count_date DATE,
-      FOREIGN KEY (location_id) REFERENCES locations(id),
-      FOREIGN KEY (ingredient_id) REFERENCES ingredients(id),
+      FOREIGN KEY (location_id) REFERENCES locations(id) ON DELETE CASCADE,
+      FOREIGN KEY (ingredient_id) REFERENCES ingredients(id) ON DELETE CASCADE,
       UNIQUE(location_id, ingredient_id)
     );
 
@@ -1067,11 +1086,11 @@ function initializeSchema() {
       received_at DATETIME,
       notes TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (from_location_id) REFERENCES locations(id),
-      FOREIGN KEY (to_location_id) REFERENCES locations(id),
-      FOREIGN KEY (ingredient_id) REFERENCES ingredients(id),
-      FOREIGN KEY (requested_by) REFERENCES employees(id),
-      FOREIGN KEY (approved_by) REFERENCES employees(id)
+      FOREIGN KEY (from_location_id) REFERENCES locations(id) ON DELETE RESTRICT,
+      FOREIGN KEY (to_location_id) REFERENCES locations(id) ON DELETE RESTRICT,
+      FOREIGN KEY (ingredient_id) REFERENCES ingredients(id) ON DELETE CASCADE,
+      FOREIGN KEY (requested_by) REFERENCES employees(id) ON DELETE SET NULL,
+      FOREIGN KEY (approved_by) REFERENCES employees(id) ON DELETE SET NULL
     );
 
     -- ============================================================
@@ -1090,7 +1109,7 @@ function initializeSchema() {
       active INTEGER DEFAULT 1,
       created_by INTEGER,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (created_by) REFERENCES employees(id)
+      FOREIGN KEY (created_by) REFERENCES employees(id) ON DELETE SET NULL
     );
 
     CREATE TABLE IF NOT EXISTS training_lessons (
@@ -1133,10 +1152,10 @@ function initializeSchema() {
       due_date DATE,
       assigned_by INTEGER,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (employee_id) REFERENCES employees(id),
-      FOREIGN KEY (course_id) REFERENCES training_courses(id),
-      FOREIGN KEY (current_lesson_id) REFERENCES training_lessons(id),
-      FOREIGN KEY (assigned_by) REFERENCES employees(id)
+      FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE,
+      FOREIGN KEY (course_id) REFERENCES training_courses(id) ON DELETE CASCADE,
+      FOREIGN KEY (current_lesson_id) REFERENCES training_lessons(id) ON DELETE SET NULL,
+      FOREIGN KEY (assigned_by) REFERENCES employees(id) ON DELETE SET NULL
     );
 
     CREATE INDEX IF NOT EXISTS idx_enrollment_emp ON training_enrollments(employee_id);
@@ -1150,7 +1169,7 @@ function initializeSchema() {
       quiz_score INTEGER,
       quiz_answers TEXT DEFAULT '{}',
       FOREIGN KEY (enrollment_id) REFERENCES training_enrollments(id) ON DELETE CASCADE,
-      FOREIGN KEY (lesson_id) REFERENCES training_lessons(id)
+      FOREIGN KEY (lesson_id) REFERENCES training_lessons(id) ON DELETE CASCADE
     );
 
     CREATE TABLE IF NOT EXISTS certifications (
@@ -1164,8 +1183,8 @@ function initializeSchema() {
       status TEXT DEFAULT 'active',
       course_id INTEGER,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (employee_id) REFERENCES employees(id),
-      FOREIGN KEY (course_id) REFERENCES training_courses(id)
+      FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE,
+      FOREIGN KEY (course_id) REFERENCES training_courses(id) ON DELETE SET NULL
     );
 
     -- ============================================================
@@ -1203,8 +1222,8 @@ function initializeSchema() {
       created_by INTEGER,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (customer_id) REFERENCES customers(id),
-      FOREIGN KEY (created_by) REFERENCES employees(id)
+      FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL,
+      FOREIGN KEY (created_by) REFERENCES employees(id) ON DELETE SET NULL
     );
 
     CREATE INDEX IF NOT EXISTS idx_catering_date ON catering_events(event_date);
@@ -1234,8 +1253,8 @@ function initializeSchema() {
       total REAL DEFAULT 0,
       notes TEXT,
       FOREIGN KEY (event_id) REFERENCES catering_events(id) ON DELETE CASCADE,
-      FOREIGN KEY (menu_item_id) REFERENCES menu_items(id),
-      FOREIGN KEY (package_id) REFERENCES catering_packages(id)
+      FOREIGN KEY (menu_item_id) REFERENCES menu_items(id) ON DELETE SET NULL,
+      FOREIGN KEY (package_id) REFERENCES catering_packages(id) ON DELETE SET NULL
     );
 
     CREATE TABLE IF NOT EXISTS catering_event_staff (
@@ -1247,7 +1266,7 @@ function initializeSchema() {
       end_time TEXT,
       confirmed INTEGER DEFAULT 0,
       FOREIGN KEY (event_id) REFERENCES catering_events(id) ON DELETE CASCADE,
-      FOREIGN KEY (employee_id) REFERENCES employees(id)
+      FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
     );
 
     -- ============================================================
@@ -1276,7 +1295,7 @@ function initializeSchema() {
       created_by INTEGER,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (created_by) REFERENCES employees(id)
+      FOREIGN KEY (created_by) REFERENCES employees(id) ON DELETE SET NULL
     );
 
     CREATE TABLE IF NOT EXISTS promotions (
@@ -1303,7 +1322,7 @@ function initializeSchema() {
       location_id INTEGER,
       active INTEGER DEFAULT 1,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (campaign_id) REFERENCES marketing_campaigns(id)
+      FOREIGN KEY (campaign_id) REFERENCES marketing_campaigns(id) ON DELETE SET NULL
     );
 
     CREATE INDEX IF NOT EXISTS idx_promo_code ON promotions(code);
@@ -1316,9 +1335,9 @@ function initializeSchema() {
       customer_id INTEGER,
       discount_amount REAL DEFAULT 0,
       used_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (promotion_id) REFERENCES promotions(id),
-      FOREIGN KEY (order_id) REFERENCES orders(id),
-      FOREIGN KEY (customer_id) REFERENCES customers(id)
+      FOREIGN KEY (promotion_id) REFERENCES promotions(id) ON DELETE CASCADE,
+      FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+      FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL
     );
 
     CREATE TABLE IF NOT EXISTS email_lists (
@@ -1340,7 +1359,7 @@ function initializeSchema() {
       subscribed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       unsubscribed_at DATETIME,
       FOREIGN KEY (list_id) REFERENCES email_lists(id) ON DELETE CASCADE,
-      FOREIGN KEY (customer_id) REFERENCES customers(id)
+      FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL
     );
 
     -- ============================================================
@@ -1413,7 +1432,7 @@ function initializeSchema() {
       request_payload TEXT,
       response_payload TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (merchant_id) REFERENCES clover_merchants(merchant_id)
+      FOREIGN KEY (merchant_id) REFERENCES clover_merchants(merchant_id) ON DELETE CASCADE
     );
 
     CREATE INDEX IF NOT EXISTS idx_clover_sync_merchant ON clover_sync_log(merchant_id);
@@ -1429,7 +1448,7 @@ function initializeSchema() {
       processed_at DATETIME,
       error_message TEXT,
       received_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (merchant_id) REFERENCES clover_merchants(merchant_id)
+      FOREIGN KEY (merchant_id) REFERENCES clover_merchants(merchant_id) ON DELETE CASCADE
     );
 
     CREATE INDEX IF NOT EXISTS idx_clover_webhooks_merchant ON clover_webhooks(merchant_id);
@@ -1441,7 +1460,7 @@ function initializeSchema() {
       local_id INTEGER NOT NULL,
       clover_id TEXT NOT NULL,
       last_synced_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (merchant_id) REFERENCES clover_merchants(merchant_id),
+      FOREIGN KEY (merchant_id) REFERENCES clover_merchants(merchant_id) ON DELETE CASCADE,
       UNIQUE(merchant_id, entity_type, local_id),
       UNIQUE(merchant_id, entity_type, clover_id)
     );
@@ -1479,7 +1498,7 @@ function initializeSchema() {
       exempt INTEGER DEFAULT 0,
       special_rate REAL,
       notes TEXT,
-      FOREIGN KEY (config_id) REFERENCES sales_tax_config(id)
+      FOREIGN KEY (config_id) REFERENCES sales_tax_config(id) ON DELETE CASCADE
     );
 
     CREATE TABLE IF NOT EXISTS sales_tax_collected (
@@ -1503,7 +1522,7 @@ function initializeSchema() {
       city_portion REAL DEFAULT 0,
       special_portion REAL DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (order_id) REFERENCES orders(id)
+      FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE SET NULL
     );
 
     CREATE INDEX IF NOT EXISTS idx_tax_collected_date ON sales_tax_collected(sale_date);
@@ -1579,8 +1598,8 @@ function initializeSchema() {
       notes TEXT,
       active INTEGER DEFAULT 1,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (config_id) REFERENCES sales_tax_config(id),
-      FOREIGN KEY (customer_id) REFERENCES customers(id)
+      FOREIGN KEY (config_id) REFERENCES sales_tax_config(id) ON DELETE CASCADE,
+      FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
     );
 
     CREATE TABLE IF NOT EXISTS anomaly_log (
@@ -1596,8 +1615,107 @@ function initializeSchema() {
       acknowledged_by INTEGER,
       location_id INTEGER,
       detected_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (acknowledged_by) REFERENCES employees(id)
+      FOREIGN KEY (acknowledged_by) REFERENCES employees(id) ON DELETE SET NULL
     );
+
+    -- ============================================================
+    -- PERFORMANCE INDEXES (FK columns & common lookups)
+    -- ============================================================
+
+    -- Ingredients
+    CREATE INDEX IF NOT EXISTS idx_ingredients_category ON ingredients(category_id);
+    CREATE INDEX IF NOT EXISTS idx_ingredients_supplier ON ingredients(supplier_id);
+
+    -- Menu
+    CREATE INDEX IF NOT EXISTS idx_menu_items_category ON menu_items(category_id);
+    CREATE INDEX IF NOT EXISTS idx_menu_items_station ON menu_items(station);
+    CREATE INDEX IF NOT EXISTS idx_recipes_menu_item ON recipes(menu_item_id);
+    CREATE INDEX IF NOT EXISTS idx_recipes_ingredient ON recipes(ingredient_id);
+    CREATE INDEX IF NOT EXISTS idx_menu_item_modifiers_item ON menu_item_modifiers(menu_item_id);
+    CREATE INDEX IF NOT EXISTS idx_menu_item_modifiers_mod ON menu_item_modifiers(modifier_id);
+    CREATE INDEX IF NOT EXISTS idx_combo_items_combo ON combo_items(combo_id);
+
+    -- Employees & Time
+    CREATE INDEX IF NOT EXISTS idx_employees_pin ON employees(pin_hash);
+    CREATE INDEX IF NOT EXISTS idx_employees_active ON employees(active);
+    CREATE INDEX IF NOT EXISTS idx_time_entries_employee ON time_entries(employee_id);
+    CREATE INDEX IF NOT EXISTS idx_time_entries_clockin ON time_entries(clock_in);
+    CREATE INDEX IF NOT EXISTS idx_shifts_employee ON shifts(employee_id);
+    CREATE INDEX IF NOT EXISTS idx_shifts_date ON shifts(shift_date);
+
+    -- Orders & Payments
+    CREATE INDEX IF NOT EXISTS idx_orders_employee ON orders(employee_id);
+    CREATE INDEX IF NOT EXISTS idx_orders_customer ON orders(customer_id);
+    CREATE INDEX IF NOT EXISTS idx_order_items_menu_item ON order_items(menu_item_id);
+    CREATE INDEX IF NOT EXISTS idx_payments_order ON order_payments(order_id);
+    CREATE INDEX IF NOT EXISTS idx_payments_employee ON order_payments(employee_id);
+
+    -- Tables & Reservations
+    CREATE INDEX IF NOT EXISTS idx_reservations_customer ON reservations(customer_id);
+    CREATE INDEX IF NOT EXISTS idx_reservations_table ON reservations(table_id);
+    CREATE INDEX IF NOT EXISTS idx_reservations_date ON reservations(reservation_date);
+    CREATE INDEX IF NOT EXISTS idx_tabs_customer ON tabs(customer_id);
+
+    -- Customers
+    CREATE INDEX IF NOT EXISTS idx_customers_email ON customers(email);
+    CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone);
+
+    -- Kitchen
+    CREATE INDEX IF NOT EXISTS idx_kitchen_order ON kitchen_queue(order_id);
+    CREATE INDEX IF NOT EXISTS idx_kitchen_order_item ON kitchen_queue(order_item_id);
+
+    -- Purchase Orders
+    CREATE INDEX IF NOT EXISTS idx_po_supplier ON purchase_orders(supplier_id);
+    CREATE INDEX IF NOT EXISTS idx_po_status ON purchase_orders(status);
+    CREATE INDEX IF NOT EXISTS idx_po_items_po ON purchase_order_items(purchase_order_id);
+    CREATE INDEX IF NOT EXISTS idx_po_items_ingredient ON purchase_order_items(ingredient_id);
+
+    -- Waste & Stock Transfers
+    CREATE INDEX IF NOT EXISTS idx_waste_ingredient ON waste_log(ingredient_id);
+    CREATE INDEX IF NOT EXISTS idx_stock_transfers_ingredient ON stock_transfers(ingredient_id);
+
+    -- Notifications
+    CREATE INDEX IF NOT EXISTS idx_notifications_target ON notifications(target_employee_id);
+
+    -- AP
+    CREATE INDEX IF NOT EXISTS idx_ap_lines_invoice ON ap_invoice_lines(invoice_id);
+    CREATE INDEX IF NOT EXISTS idx_ap_payments_invoice ON ap_payments(invoice_id);
+
+    -- Bank
+    CREATE INDEX IF NOT EXISTS idx_bank_recon_account ON bank_reconciliations(bank_account_id);
+
+    -- Payroll
+    CREATE INDEX IF NOT EXISTS idx_payroll_runs_period ON payroll_runs(pay_period_start, pay_period_end);
+
+    -- Locations
+    CREATE INDEX IF NOT EXISTS idx_location_employees_location ON location_employees(location_id);
+    CREATE INDEX IF NOT EXISTS idx_location_employees_employee ON location_employees(employee_id);
+    CREATE INDEX IF NOT EXISTS idx_location_inventory_location ON location_inventory(location_id);
+    CREATE INDEX IF NOT EXISTS idx_location_inventory_ingredient ON location_inventory(ingredient_id);
+    CREATE INDEX IF NOT EXISTS idx_inter_transfers_from ON inter_location_transfers(from_location_id);
+    CREATE INDEX IF NOT EXISTS idx_inter_transfers_to ON inter_location_transfers(to_location_id);
+
+    -- Catering
+    CREATE INDEX IF NOT EXISTS idx_catering_customer ON catering_events(customer_id);
+    CREATE INDEX IF NOT EXISTS idx_catering_items_event ON catering_event_items(event_id);
+    CREATE INDEX IF NOT EXISTS idx_catering_staff_event ON catering_event_staff(event_id);
+
+    -- Marketing
+    CREATE INDEX IF NOT EXISTS idx_promo_usage_promo ON promotion_uses(promotion_id);
+    CREATE INDEX IF NOT EXISTS idx_promo_usage_order ON promotion_uses(order_id);
+    CREATE INDEX IF NOT EXISTS idx_email_subscribers_list ON email_subscribers(list_id);
+    CREATE INDEX IF NOT EXISTS idx_email_subscribers_customer ON email_subscribers(customer_id);
+
+    -- Clover
+    CREATE INDEX IF NOT EXISTS idx_clover_idmap_merchant ON clover_id_map(merchant_id);
+
+    -- Tax
+    CREATE INDEX IF NOT EXISTS idx_tax_exemptions_customer ON sales_tax_exemptions(customer_id);
+    CREATE INDEX IF NOT EXISTS idx_tax_exemptions_config ON sales_tax_exemptions(config_id);
+
+    -- Anomaly log
+    CREATE INDEX IF NOT EXISTS idx_anomaly_severity ON anomaly_log(severity);
+    CREATE INDEX IF NOT EXISTS idx_anomaly_detected ON anomaly_log(detected_at);
   `);
 
   // Insert default settings

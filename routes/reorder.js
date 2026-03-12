@@ -1,8 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const { getDb } = require('../db/database');
+const { authenticate } = require('../middleware/auth');
 const { triggerCheck } = require('../services/supply-monitor');
 
+// All routes require authentication
+router.use(authenticate);
 // ============================================================
 // REORDER REQUESTS - Approval Workflow
 // ============================================================

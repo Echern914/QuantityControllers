@@ -1,8 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const { getDb } = require('../db/database');
+const { authenticate } = require('../middleware/auth');
 const { deductForOrder } = require('../services/deduction');
 
+// All routes require authentication
+router.use(authenticate);
 function getNextOrderNumber() {
   const db = getDb();
   const setting = db.prepare(`SELECT value FROM settings WHERE key = 'next_order_number'`).get();

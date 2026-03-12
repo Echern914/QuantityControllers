@@ -7,9 +7,10 @@ const router = express.Router();
 const crypto = require('crypto');
 const { getDb } = require('../db/database');
 const clover = require('../services/clover');
+const { authenticate } = require('../middleware/auth');
 
 // ============================================================
-// OAuth 2.0 Flow
+// OAuth 2.0 Flow (public — called by Clover, not by authenticated users)
 // ============================================================
 
 // GET /api/clover/oauth/authorize - Start OAuth flow
@@ -56,6 +57,78 @@ router.post('/oauth/disconnect', (req, res) => {
   clover.removeMerchant(merchant_id);
   res.json({ success: true });
 });
+
+// ============================================================
+// Webhooks (public — called by Clover servers, not authenticated users)
+// ============================================================
+
+// POST /api/clover/webhooks - Receive webhook from Clover
+router.post('/webhooks', async (req, res) => {
+  // Verify webhook signature if configured
+  const signature = req.headers['x-clover-hmac'];
+  if (process.env.CLOVER_WEBHOOK_SECRET && signature) {
+    const expected = crypto.createHmac('sha256', process.env.CLOVER_WEBHOOK_SECRET)
+      .update(JSON.stringify(req.body))
+      .digest('base64');
+    if (signature !== expected) {
+      return res.status(401).json({ error: 'Invalid webhook signature' });
+    }
+  }
+
+  const events = req.body.merchants || {};
+  let processed = 0;
+
+  for (const [merchantId, merchantEvents] of Object.entries(events)) {
+    for (const event of merchantEvents) {
+      const webhookRecord = clover.saveWebhook(merchantId, event.type, event);
+      try {
+        const webhook = getDb().prepare('SELECT * FROM clover_webhooks WHERE id = ?').get(webhookRecord.lastInsertRowid);
+        await clover.processWebhook(webhook);
+        processed++;
+      } catch (err) {
+        console.error(`[Clover Webhook] Error processing ${event.type}:`, err.message);
+      }
+    }
+  }
+
+  req.app.locals.broadcast({ type: 'clover_webhook', processed });
+  res.json({ processed });
+});
+
+// ============================================================
+// App Market Required Endpoints (public — called by Clover servers)
+// ============================================================
+
+// POST /api/clover/app/installed - Called when merchant installs app
+router.post('/app/installed', async (req, res) => {
+  const { merchant_id, access_token } = req.body;
+  if (!merchant_id || !access_token) {
+    return res.status(400).json({ error: 'merchant_id and access_token required' });
+  }
+
+  let merchantName = 'Unknown';
+  try {
+    const info = await clover.getMerchantInfo(merchant_id);
+    merchantName = info.name || merchantName;
+  } catch {}
+
+  clover.saveMerchant(merchant_id, access_token, merchantName);
+  res.json({ success: true });
+});
+
+// POST /api/clover/app/uninstalled - Called when merchant uninstalls app
+router.post('/app/uninstalled', (req, res) => {
+  const { merchant_id } = req.body;
+  if (merchant_id) {
+    clover.removeMerchant(merchant_id);
+  }
+  res.json({ success: true });
+});
+
+// ============================================================
+// All routes below require authentication
+// ============================================================
+router.use(authenticate);
 
 // ============================================================
 // Connection & Status
@@ -323,41 +396,8 @@ router.get('/sync/mappings', (req, res) => {
 });
 
 // ============================================================
-// Webhooks
+// Webhook History (authenticated — management view)
 // ============================================================
-
-// POST /api/clover/webhooks - Receive webhook from Clover
-router.post('/webhooks', async (req, res) => {
-  // Verify webhook signature if configured
-  const signature = req.headers['x-clover-hmac'];
-  if (process.env.CLOVER_WEBHOOK_SECRET && signature) {
-    const expected = crypto.createHmac('sha256', process.env.CLOVER_WEBHOOK_SECRET)
-      .update(JSON.stringify(req.body))
-      .digest('base64');
-    if (signature !== expected) {
-      return res.status(401).json({ error: 'Invalid webhook signature' });
-    }
-  }
-
-  const events = req.body.merchants || {};
-  let processed = 0;
-
-  for (const [merchantId, merchantEvents] of Object.entries(events)) {
-    for (const event of merchantEvents) {
-      const webhookRecord = clover.saveWebhook(merchantId, event.type, event);
-      try {
-        const webhook = getDb().prepare('SELECT * FROM clover_webhooks WHERE id = ?').get(webhookRecord.lastInsertRowid);
-        await clover.processWebhook(webhook);
-        processed++;
-      } catch (err) {
-        console.error(`[Clover Webhook] Error processing ${event.type}:`, err.message);
-      }
-    }
-  }
-
-  req.app.locals.broadcast({ type: 'clover_webhook', processed });
-  res.json({ processed });
-});
 
 // GET /api/clover/webhooks/history - Get webhook history
 router.get('/webhooks/history', (req, res) => {
@@ -368,36 +408,6 @@ router.get('/webhooks/history', (req, res) => {
   const limit = parseInt(req.query.limit || '50');
   const webhooks = db.prepare('SELECT * FROM clover_webhooks WHERE merchant_id = ? ORDER BY received_at DESC LIMIT ?').all(merchantId, limit);
   res.json(webhooks);
-});
-
-// ============================================================
-// App Market Required Endpoints
-// ============================================================
-
-// POST /api/clover/app/installed - Called when merchant installs app
-router.post('/app/installed', async (req, res) => {
-  const { merchant_id, access_token } = req.body;
-  if (!merchant_id || !access_token) {
-    return res.status(400).json({ error: 'merchant_id and access_token required' });
-  }
-
-  let merchantName = 'Unknown';
-  try {
-    const info = await clover.getMerchantInfo(merchant_id);
-    merchantName = info.name || merchantName;
-  } catch {}
-
-  clover.saveMerchant(merchant_id, access_token, merchantName);
-  res.json({ success: true });
-});
-
-// POST /api/clover/app/uninstalled - Called when merchant uninstalls app
-router.post('/app/uninstalled', (req, res) => {
-  const { merchant_id } = req.body;
-  if (merchant_id) {
-    clover.removeMerchant(merchant_id);
-  }
-  res.json({ success: true });
 });
 
 // GET /api/clover/config - Get current Clover config (safe, no secrets)

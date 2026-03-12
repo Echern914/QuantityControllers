@@ -5,6 +5,10 @@
 const express = require('express');
 const router = express.Router();
 const { getDb } = require('../db/database');
+const { authenticate } = require('../middleware/auth');
+
+// All routes require authentication
+router.use(authenticate);
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514';
