@@ -111,10 +111,10 @@ router.put('/config/:id', (req, res) => {
 //  TAX COLLECTED — Transaction-level tax tracking
 // ============================================================
 
-// GET /api/sales-tax/collected — Tax collected with date filters
+// GET /api/sales-tax/collected — Tax collected with date filters + pagination
 router.get('/collected', (req, res) => {
   const db = getDb();
-  const { start, end, period } = req.query;
+  const { start, end, period, page } = req.query;
   let startDate, endDate;
 
   if (start && end) {
@@ -152,7 +152,10 @@ router.get('/collected', (req, res) => {
     }
   }
 
-  const records = db.prepare(`SELECT * FROM sales_tax_collected WHERE sale_date BETWEEN ? AND ? ORDER BY sale_date DESC`).all(startDate, endDate);
+  const pageSize = 50;
+  const offset = (parseInt(page) || 0) * pageSize;
+
+  const records = db.prepare(`SELECT * FROM sales_tax_collected WHERE sale_date BETWEEN ? AND ? ORDER BY sale_date DESC LIMIT ? OFFSET ?`).all(startDate, endDate, pageSize, offset);
 
   const summary = db.prepare(`
     SELECT
@@ -227,6 +230,12 @@ router.get('/dashboard', (req, res) => {
   // Recent filings
   const recentFilings = db.prepare(`SELECT * FROM sales_tax_filings ORDER BY period_end DESC LIMIT 6`).all();
 
+  // Tax liability — total owed from pending/filed (unpaid) filings
+  const liabilityRow = db.prepare(`
+    SELECT COALESCE(SUM(total_tax_due), 0) as liability
+    FROM sales_tax_filings WHERE status IN ('pending', 'filed')
+  `).get();
+
   // Monthly trend (last 12 months)
   const trend = db.prepare(`
     SELECT strftime('%Y-%m', sale_date) as month, SUM(subtotal) as sales, SUM(total_tax) as tax
@@ -246,6 +255,16 @@ router.get('/dashboard', (req, res) => {
     FROM sales_tax_collected WHERE sale_date BETWEEN ? AND ?
   `).get(monthStart, today);
 
+  // Jurisdiction breakdown this month
+  const jurisdictionRow = db.prepare(`
+    SELECT
+      COALESCE(SUM(state_portion), 0) as state,
+      COALESCE(SUM(county_portion), 0) as county,
+      COALESCE(SUM(city_portion), 0) as city,
+      COALESCE(SUM(special_portion), 0) as special
+    FROM sales_tax_collected WHERE sale_date BETWEEN ? AND ?
+  `).get(monthStart, today);
+
   res.json({
     today: todaySummary,
     month: monthSummary,
@@ -254,8 +273,10 @@ router.get('/dashboard', (req, res) => {
     config,
     deadlines,
     recentFilings,
+    liability: liabilityRow.liability,
     trend,
     categoryBreakdown,
+    jurisdictionBreakdown: jurisdictionRow,
   });
 });
 

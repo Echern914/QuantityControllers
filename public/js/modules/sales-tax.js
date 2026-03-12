@@ -62,15 +62,18 @@ const SalesTaxModule = {
 
     const c = data.config;
     const nextDeadline = this.getNextDeadline(data.deadlines);
+    const pendingFilings = data.recentFilings.filter(f => f.status === 'pending');
+    const overdueFilings = data.recentFilings.filter(f => f.status === 'pending' && f.due_date && f.due_date < new Date().toISOString().slice(0, 10));
+    const liability = data.liability || 0;
 
     el.innerHTML = `
       <div class="tax-dashboard">
-        <!-- State Badge -->
+        <!-- State Badge & Deadline -->
         <div class="tax-state-badge">
           <div class="tax-state-flag">${c.state_code}</div>
           <div>
             <div class="tax-state-name">${Utils.escapeHtml(c.state_name)}</div>
-            <div class="tax-state-rate">Combined Rate: ${(c.combined_rate * 100).toFixed(2)}%</div>
+            <div class="tax-state-rate">Combined Rate: ${(c.combined_rate * 100).toFixed(2)}% &middot; Filing: ${c.filing_frequency}</div>
           </div>
           ${nextDeadline ? `<div class="tax-deadline-badge ${this.deadlineUrgency(nextDeadline)}">
             <div class="tax-deadline-label">Next Filing Due</div>
@@ -78,31 +81,44 @@ const SalesTaxModule = {
           </div>` : ''}
         </div>
 
-        <!-- Summary Cards -->
+        <!-- Overdue / Liability Alert -->
+        ${overdueFilings.length > 0 ? `
+        <div class="tax-alert-banner overdue">
+          <strong>⚠ ${overdueFilings.length} Overdue Filing${overdueFilings.length > 1 ? 's' : ''}</strong>
+          <span>${Utils.currency(overdueFilings.reduce((s, f) => s + f.total_tax_due, 0))} in overdue tax payments.</span>
+          <button class="btn-xs" onclick="document.querySelector('[data-tab=filings]').click()">View Filings</button>
+        </div>` : ''}
+
+        <!-- Liability + Summary Cards -->
         <div class="tax-summary-grid">
+          <div class="tax-card accent">
+            <div class="tax-card-label">Tax Liability</div>
+            <div class="tax-card-value">${Utils.currency(liability)}</div>
+            <div class="tax-card-sub">${pendingFilings.length} pending filing${pendingFilings.length !== 1 ? 's' : ''}</div>
+          </div>
           <div class="tax-card">
             <div class="tax-card-label">Today</div>
-            <div class="tax-card-value">${Utils.money(data.today.tax)}</div>
-            <div class="tax-card-sub">${data.today.transactions} transactions &middot; ${Utils.money(data.today.sales)} sales</div>
+            <div class="tax-card-value">${Utils.currency(data.today.tax)}</div>
+            <div class="tax-card-sub">${data.today.transactions} txns &middot; ${Utils.currency(data.today.sales)} sales</div>
           </div>
           <div class="tax-card">
             <div class="tax-card-label">This Month</div>
-            <div class="tax-card-value">${Utils.money(data.month.tax)}</div>
-            <div class="tax-card-sub">${data.month.transactions} transactions &middot; ${Utils.money(data.month.sales)} sales</div>
+            <div class="tax-card-value">${Utils.currency(data.month.tax)}</div>
+            <div class="tax-card-sub">${data.month.transactions} txns &middot; ${Utils.currency(data.month.sales)} sales</div>
           </div>
           <div class="tax-card">
             <div class="tax-card-label">This Quarter</div>
-            <div class="tax-card-value">${Utils.money(data.quarter.tax)}</div>
-            <div class="tax-card-sub">${data.quarter.transactions} transactions &middot; ${Utils.money(data.quarter.sales)} sales</div>
+            <div class="tax-card-value">${Utils.currency(data.quarter.tax)}</div>
+            <div class="tax-card-sub">${data.quarter.transactions} txns &middot; ${Utils.currency(data.quarter.sales)} sales</div>
           </div>
-          <div class="tax-card accent">
+          <div class="tax-card">
             <div class="tax-card-label">Year to Date</div>
-            <div class="tax-card-value">${Utils.money(data.year.tax)}</div>
-            <div class="tax-card-sub">${data.year.transactions} transactions &middot; ${Utils.money(data.year.sales)} sales</div>
+            <div class="tax-card-value">${Utils.currency(data.year.tax)}</div>
+            <div class="tax-card-sub">${data.year.transactions} txns &middot; ${Utils.currency(data.year.sales)} sales</div>
           </div>
         </div>
 
-        <!-- Rate Breakdown -->
+        <!-- Rate Breakdown + Category -->
         <div class="tax-section-grid">
           <div class="tax-section">
             <h3 class="tax-section-title">Rate Breakdown</h3>
@@ -141,10 +157,33 @@ const SalesTaxModule = {
           <div class="tax-section">
             <h3 class="tax-section-title">Tax by Category (This Month)</h3>
             <div class="tax-category-list">
-              ${this.categoryRow('Food & Meals', data.categoryBreakdown.food_tax, data.month.tax)}
-              ${this.categoryRow('Beverages', data.categoryBreakdown.beverage_tax, data.month.tax)}
-              ${this.categoryRow('Alcohol', data.categoryBreakdown.alcohol_tax, data.month.tax)}
-              ${this.categoryRow('Other', data.categoryBreakdown.other_tax, data.month.tax)}
+              ${this.categoryRow('Food & Meals', data.categoryBreakdown.food_tax, data.month.tax, '#6366f1')}
+              ${this.categoryRow('Beverages', data.categoryBreakdown.beverage_tax, data.month.tax, '#06b6d4')}
+              ${this.categoryRow('Alcohol', data.categoryBreakdown.alcohol_tax, data.month.tax, '#f59e0b')}
+              ${this.categoryRow('Other', data.categoryBreakdown.other_tax, data.month.tax, '#94a3b8')}
+            </div>
+          </div>
+        </div>
+
+        <!-- Jurisdiction Breakdown (This Month) -->
+        <div class="tax-section">
+          <h3 class="tax-section-title">Jurisdiction Breakdown (This Month)</h3>
+          <div class="tax-jurisdiction-grid">
+            <div class="tax-jurisdiction-item">
+              <div class="tax-jurisdiction-label">State</div>
+              <div class="tax-jurisdiction-value">${Utils.currency(data.jurisdictionBreakdown?.state || 0)}</div>
+            </div>
+            <div class="tax-jurisdiction-item">
+              <div class="tax-jurisdiction-label">County</div>
+              <div class="tax-jurisdiction-value">${Utils.currency(data.jurisdictionBreakdown?.county || 0)}</div>
+            </div>
+            <div class="tax-jurisdiction-item">
+              <div class="tax-jurisdiction-label">City</div>
+              <div class="tax-jurisdiction-value">${Utils.currency(data.jurisdictionBreakdown?.city || 0)}</div>
+            </div>
+            <div class="tax-jurisdiction-item">
+              <div class="tax-jurisdiction-label">Special</div>
+              <div class="tax-jurisdiction-value">${Utils.currency(data.jurisdictionBreakdown?.special || 0)}</div>
             </div>
           </div>
         </div>
@@ -158,7 +197,7 @@ const SalesTaxModule = {
               const maxTax = Math.max(...data.trend.map(x => x.tax));
               const pct = maxTax > 0 ? (t.tax / maxTax * 100) : 0;
               return `<div class="tax-trend-bar-wrap">
-                <div class="tax-trend-amount">${Utils.money(t.tax)}</div>
+                <div class="tax-trend-amount">${Utils.currency(t.tax)}</div>
                 <div class="tax-trend-bar" style="height:${Math.max(pct, 4)}%"></div>
                 <div class="tax-trend-label">${t.month.slice(5)}</div>
               </div>`;
@@ -169,7 +208,10 @@ const SalesTaxModule = {
         <!-- Recent Filings -->
         ${data.recentFilings.length > 0 ? `
         <div class="tax-section">
-          <h3 class="tax-section-title">Recent Filings</h3>
+          <div class="section-header">
+            <h3 class="tax-section-title" style="margin:0">Recent Filings</h3>
+            <button class="btn-sm" onclick="document.querySelector('[data-tab=filings]').click()">View All</button>
+          </div>
           <table class="data-table">
             <thead><tr><th>Period</th><th>Status</th><th>Tax Due</th><th>Due Date</th></tr></thead>
             <tbody>
@@ -177,8 +219,8 @@ const SalesTaxModule = {
                 <tr>
                   <td>${f.period_start} to ${f.period_end}</td>
                   <td><span class="status-badge status-${f.status}">${f.status}</span></td>
-                  <td>${Utils.money(f.total_tax_due)}</td>
-                  <td>${f.due_date || '-'}</td>
+                  <td>${Utils.currency(f.total_tax_due)}</td>
+                  <td>${f.due_date ? this.formatDate(f.due_date) : '-'}</td>
                 </tr>
               `).join('')}
             </tbody>
@@ -187,14 +229,14 @@ const SalesTaxModule = {
       </div>`;
   },
 
-  categoryRow(label, amount, total) {
+  categoryRow(label, amount, total, color) {
     const pct = total > 0 ? (amount / total * 100) : 0;
     return `<div class="tax-cat-row">
       <span class="tax-cat-label">${label}</span>
       <div class="tax-cat-bar-track">
-        <div class="tax-cat-bar" style="width:${pct}%"></div>
+        <div class="tax-cat-bar" style="width:${pct}%;background:${color}"></div>
       </div>
-      <span class="tax-cat-amount">${Utils.money(amount)}</span>
+      <span class="tax-cat-amount">${Utils.currency(amount)}</span>
     </div>`;
   },
 
@@ -236,38 +278,68 @@ const SalesTaxModule = {
     this.loadCollectedData();
   },
 
-  async loadCollectedData() {
+  collectedPage: 0,
+
+  async loadCollectedData(page) {
     const period = document.getElementById('tax-period-select').value;
     const contentEl = document.getElementById('tax-collected-content');
     UI.loading(contentEl);
 
-    let params = `period=${period}`;
+    if (page !== undefined) this.collectedPage = page;
+    else this.collectedPage = 0;
+
+    let params = `period=${period}&page=${this.collectedPage}`;
     if (period === 'custom') {
       const start = document.getElementById('tax-start').value;
       const end = document.getElementById('tax-end').value;
-      params = `start=${start}&end=${end}`;
+      params = `start=${start}&end=${end}&page=${this.collectedPage}`;
     }
 
     const data = await API.get(`/api/sales-tax/collected?${params}`);
     const s = data.summary;
+    const pageSize = 50;
+    const totalPages = Math.ceil(s.transaction_count / pageSize);
 
     contentEl.innerHTML = `
+      <!-- Summary Cards -->
       <div class="tax-summary-grid" style="margin-bottom:20px">
         <div class="tax-card compact">
           <div class="tax-card-label">Gross Sales</div>
-          <div class="tax-card-value">${Utils.money(s.total_sales)}</div>
+          <div class="tax-card-value">${Utils.currency(s.total_sales)}</div>
         </div>
-        <div class="tax-card compact">
+        <div class="tax-card compact accent">
           <div class="tax-card-label">Total Tax Collected</div>
-          <div class="tax-card-value">${Utils.money(s.total_tax_collected)}</div>
+          <div class="tax-card-value">${Utils.currency(s.total_tax_collected)}</div>
         </div>
         <div class="tax-card compact">
           <div class="tax-card-label">State Portion</div>
-          <div class="tax-card-value">${Utils.money(s.total_state_portion)}</div>
+          <div class="tax-card-value">${Utils.currency(s.total_state_portion)}</div>
         </div>
         <div class="tax-card compact">
           <div class="tax-card-label">Local Portions</div>
-          <div class="tax-card-value">${Utils.money(s.total_county_portion + s.total_city_portion + s.total_special_portion)}</div>
+          <div class="tax-card-value">${Utils.currency(s.total_county_portion + s.total_city_portion + s.total_special_portion)}</div>
+        </div>
+      </div>
+
+      <!-- Category + Jurisdiction Breakdown -->
+      <div class="tax-section-grid" style="margin-bottom:16px">
+        <div class="tax-section" style="margin-bottom:0">
+          <h3 class="tax-section-title">By Category</h3>
+          <div class="tax-category-list">
+            ${this.categoryRow('Food', s.total_food_tax, s.total_tax_collected, '#6366f1')}
+            ${this.categoryRow('Beverages', s.total_beverage_tax, s.total_tax_collected, '#06b6d4')}
+            ${this.categoryRow('Alcohol', s.total_alcohol_tax, s.total_tax_collected, '#f59e0b')}
+            ${this.categoryRow('Other', s.total_other_tax, s.total_tax_collected, '#94a3b8')}
+          </div>
+        </div>
+        <div class="tax-section" style="margin-bottom:0">
+          <h3 class="tax-section-title">By Jurisdiction</h3>
+          <div class="tax-category-list">
+            ${this.categoryRow('State', s.total_state_portion, s.total_tax_collected, '#6366f1')}
+            ${this.categoryRow('County', s.total_county_portion, s.total_tax_collected, '#f59e0b')}
+            ${this.categoryRow('City', s.total_city_portion, s.total_tax_collected, '#06b6d4')}
+            ${this.categoryRow('Special', s.total_special_portion, s.total_tax_collected, '#10b981')}
+          </div>
         </div>
       </div>
 
@@ -279,7 +351,7 @@ const SalesTaxModule = {
           ${data.daily.map(d => {
             const maxTax = Math.max(...data.daily.map(x => x.tax));
             const pct = maxTax > 0 ? (d.tax / maxTax * 100) : 0;
-            return `<div class="tax-daily-bar-wrap" title="${d.sale_date}: ${Utils.money(d.tax)} tax on ${Utils.money(d.sales)} sales">
+            return `<div class="tax-daily-bar-wrap" title="${d.sale_date}: ${Utils.currency(d.tax)} tax on ${Utils.currency(d.sales)} sales">
               <div class="tax-daily-bar" style="height:${Math.max(pct, 3)}%"></div>
               <div class="tax-daily-label">${d.sale_date.slice(5)}</div>
             </div>`;
@@ -306,34 +378,66 @@ const SalesTaxModule = {
               </tr>
             </thead>
             <tbody>
-              ${data.records.slice(0, 100).map(r => `
+              ${data.records.map(r => `
                 <tr>
                   <td>${r.sale_date}</td>
                   <td>${Utils.escapeHtml(r.order_number || '-')}</td>
-                  <td>${Utils.money(r.subtotal)}</td>
-                  <td>${Utils.money(r.food_tax)}</td>
-                  <td>${Utils.money(r.beverage_tax)}</td>
-                  <td>${Utils.money(r.alcohol_tax)}</td>
-                  <td><strong>${Utils.money(r.total_tax)}</strong></td>
+                  <td>${Utils.currency(r.subtotal)}</td>
+                  <td>${Utils.currency(r.food_tax)}</td>
+                  <td>${Utils.currency(r.beverage_tax)}</td>
+                  <td>${Utils.currency(r.alcohol_tax)}</td>
+                  <td><strong>${Utils.currency(r.total_tax)}</strong></td>
                   <td>${(r.tax_rate * 100).toFixed(2)}%</td>
                 </tr>
               `).join('')}
             </tbody>
           </table>
         </div>
-        ${data.records.length > 100 ? `<p style="color:var(--text-secondary);text-align:center;margin-top:8px">Showing first 100 of ${data.records.length} records</p>` : ''}
+        ${totalPages > 1 ? `
+        <div class="tax-pagination">
+          <button class="btn-sm" ${this.collectedPage === 0 ? 'disabled' : ''} onclick="SalesTaxModule.loadCollectedData(${this.collectedPage - 1})">Prev</button>
+          <span>Page ${this.collectedPage + 1} of ${totalPages}</span>
+          <button class="btn-sm" ${this.collectedPage >= totalPages - 1 ? 'disabled' : ''} onclick="SalesTaxModule.loadCollectedData(${this.collectedPage + 1})">Next</button>
+        </div>` : ''}
         ` : '<div class="empty-state"><p>No tax transactions found for this period.</p></div>'}
       </div>`;
   },
 
   // ---- FILINGS ----
   async renderFilings(el) {
-    const filings = await API.get('/api/sales-tax/filings');
-    const configResp = await API.get('/api/sales-tax/config');
+    const [filings, configResp] = await Promise.all([
+      API.get('/api/sales-tax/filings'),
+      API.get('/api/sales-tax/config'),
+    ]);
     const hasConfig = configResp.config.length > 0;
+    const today = new Date().toISOString().slice(0, 10);
+
+    const pending = filings.filter(f => f.status === 'pending');
+    const overdue = pending.filter(f => f.due_date && f.due_date < today);
+    const totalOwed = pending.reduce((s, f) => s + f.total_tax_due, 0);
 
     el.innerHTML = `
       <div class="tax-filings">
+        <!-- Filing Summary Cards -->
+        <div class="tax-summary-grid" style="margin-bottom:20px">
+          <div class="tax-card compact ${overdue.length > 0 ? 'danger' : ''}">
+            <div class="tax-card-label">Overdue</div>
+            <div class="tax-card-value" style="${overdue.length > 0 ? 'color:#ef4444' : ''}">${overdue.length}</div>
+          </div>
+          <div class="tax-card compact">
+            <div class="tax-card-label">Pending</div>
+            <div class="tax-card-value">${pending.length}</div>
+          </div>
+          <div class="tax-card compact accent">
+            <div class="tax-card-label">Total Owed</div>
+            <div class="tax-card-value">${Utils.currency(totalOwed)}</div>
+          </div>
+          <div class="tax-card compact">
+            <div class="tax-card-label">Total Filings</div>
+            <div class="tax-card-value">${filings.length}</div>
+          </div>
+        </div>
+
         <div class="section-header">
           <h3>Tax Filings & Returns</h3>
           ${hasConfig ? `<button class="btn-primary" onclick="SalesTaxModule.showGenerateFiling()">Generate Filing</button>` : ''}
@@ -355,21 +459,26 @@ const SalesTaxModule = {
               </tr>
             </thead>
             <tbody>
-              ${filings.map(f => `
-                <tr>
+              ${filings.map(f => {
+                const isOverdue = f.status === 'pending' && f.due_date && f.due_date < today;
+                return `
+                <tr class="${isOverdue ? 'row-overdue' : ''}">
                   <td>${f.period_start} to ${f.period_end}</td>
                   <td>${f.state_code}</td>
-                  <td>${Utils.money(f.total_gross_sales)}</td>
-                  <td>${Utils.money(f.total_taxable_sales)}</td>
-                  <td><strong>${Utils.money(f.total_tax_due)}</strong></td>
-                  <td>${f.due_date || '-'}</td>
-                  <td><span class="status-badge status-${f.status}">${f.status}</span></td>
+                  <td>${Utils.currency(f.total_gross_sales)}</td>
+                  <td>${Utils.currency(f.total_taxable_sales)}</td>
+                  <td><strong>${Utils.currency(f.total_tax_due)}</strong></td>
+                  <td>${f.due_date ? this.formatDate(f.due_date) : '-'}</td>
+                  <td>
+                    <span class="status-badge status-${isOverdue ? 'overdue' : f.status}">${isOverdue ? 'overdue' : f.status}</span>
+                  </td>
                   <td>
                     ${f.status === 'pending' ? `<button class="btn-xs" onclick="SalesTaxModule.markFiled(${f.id})">Mark Filed</button>` : ''}
                     ${f.status === 'filed' ? `<button class="btn-xs" onclick="SalesTaxModule.markPaid(${f.id})">Mark Paid</button>` : ''}
+                    <button class="btn-xs" onclick="SalesTaxModule.showFilingDetail(${f.id})" title="Details">Details</button>
                   </td>
-                </tr>
-              `).join('')}
+                </tr>`;
+              }).join('')}
             </tbody>
           </table>
         </div>
@@ -397,17 +506,18 @@ const SalesTaxModule = {
         </div>
       </div>`;
 
-    UI.modal('Generate Tax Filing', html, [
-      { text: 'Cancel', action: 'close' },
-      { text: 'Generate', class: 'btn-primary', action: async () => {
-        const period_start = document.getElementById('filing-start').value;
-        const period_end = document.getElementById('filing-end').value;
-        await API.post('/api/sales-tax/filings', { period_start, period_end });
-        UI.closeModal();
-        UI.toast('Filing generated');
-        this.renderFilings(document.getElementById('tax-content'));
-      }}
-    ]);
+    const result = await UI.modal('Generate Tax Filing', html, { confirmText: 'Generate' });
+    if (!result) return;
+
+    const period_start = result.querySelector('#filing-start').value;
+    const period_end = result.querySelector('#filing-end').value;
+    try {
+      await API.post('/api/sales-tax/filings', { period_start, period_end });
+      UI.toast('Filing Generated', 'Tax filing created successfully', 'success');
+      this.renderFilings(document.getElementById('tax-content'));
+    } catch (err) {
+      UI.toast('Error', err.message, 'danger');
+    }
   },
 
   async markFiled(id) {
@@ -418,26 +528,70 @@ const SalesTaxModule = {
         <div class="form-group"><label>Confirmation Number</label><input type="text" id="filed-conf" placeholder="Optional" /></div>
         <div class="form-group"><label>Notes</label><textarea id="filed-notes" rows="2" placeholder="Optional notes"></textarea></div>
       </div>`;
-    UI.modal('Mark as Filed', html, [
-      { text: 'Cancel', action: 'close' },
-      { text: 'Mark Filed', class: 'btn-primary', action: async () => {
-        await API.patch(`/api/sales-tax/filings/${id}`, {
-          status: 'filed',
-          filed_date: document.getElementById('filed-date').value,
-          confirmation_number: document.getElementById('filed-conf').value || null,
-          notes: document.getElementById('filed-notes').value || null,
-        });
-        UI.closeModal();
-        UI.toast('Filing marked as filed');
-        this.renderFilings(document.getElementById('tax-content'));
-      }}
-    ]);
+
+    const result = await UI.modal('Mark as Filed', html, { confirmText: 'Mark Filed' });
+    if (!result) return;
+
+    try {
+      await API.patch(`/api/sales-tax/filings/${id}`, {
+        status: 'filed',
+        filed_date: result.querySelector('#filed-date').value,
+        confirmation_number: result.querySelector('#filed-conf').value || null,
+        notes: result.querySelector('#filed-notes').value || null,
+      });
+      UI.toast('Filed', 'Filing marked as filed', 'success');
+      this.renderFilings(document.getElementById('tax-content'));
+    } catch (err) {
+      UI.toast('Error', err.message, 'danger');
+    }
   },
 
   async markPaid(id) {
+    const confirmed = await UI.confirm('Mark as Paid', 'Confirm this filing has been paid?');
+    if (!confirmed) return;
     await API.patch(`/api/sales-tax/filings/${id}`, { status: 'paid' });
-    UI.toast('Filing marked as paid');
+    UI.toast('Paid', 'Filing marked as paid', 'success');
     this.renderFilings(document.getElementById('tax-content'));
+  },
+
+  async showFilingDetail(id) {
+    const filings = await API.get('/api/sales-tax/filings');
+    const f = filings.find(x => x.id === id);
+    if (!f) return;
+
+    const html = `
+      <div style="padding:8px 0">
+        <div class="tax-summary-grid" style="margin-bottom:16px">
+          <div class="tax-card compact">
+            <div class="tax-card-label">Gross Sales</div>
+            <div class="tax-card-value">${Utils.currency(f.total_gross_sales)}</div>
+          </div>
+          <div class="tax-card compact">
+            <div class="tax-card-label">Taxable Sales</div>
+            <div class="tax-card-value">${Utils.currency(f.total_taxable_sales)}</div>
+          </div>
+          <div class="tax-card compact">
+            <div class="tax-card-label">Exempt Sales</div>
+            <div class="tax-card-value">${Utils.currency(f.total_exempt_sales)}</div>
+          </div>
+          <div class="tax-card compact accent">
+            <div class="tax-card-label">Total Tax Due</div>
+            <div class="tax-card-value">${Utils.currency(f.total_tax_due)}</div>
+          </div>
+        </div>
+        <h4 style="margin:0 0 8px">Jurisdiction Breakdown</h4>
+        <table class="data-table compact">
+          <tr><td>State Tax</td><td style="text-align:right">${Utils.currency(f.state_tax_due)}</td></tr>
+          <tr><td>County Tax</td><td style="text-align:right">${Utils.currency(f.county_tax_due)}</td></tr>
+          <tr><td>City Tax</td><td style="text-align:right">${Utils.currency(f.city_tax_due)}</td></tr>
+          <tr><td>Special District</td><td style="text-align:right">${Utils.currency(f.special_tax_due)}</td></tr>
+          <tr><td><strong>Total</strong></td><td style="text-align:right"><strong>${Utils.currency(f.total_tax_due)}</strong></td></tr>
+        </table>
+        ${f.confirmation_number ? `<p style="margin:12px 0 0;color:var(--text-secondary)">Confirmation: ${Utils.escapeHtml(f.confirmation_number)}</p>` : ''}
+        ${f.notes ? `<p style="margin:8px 0 0;color:var(--text-secondary)">Notes: ${Utils.escapeHtml(f.notes)}</p>` : ''}
+      </div>`;
+
+    UI.modal(`Filing: ${f.period_start} to ${f.period_end}`, html, { confirmText: 'Close', showCancel: false, size: 'lg' });
   },
 
   // ---- CONFIGURATION ----
@@ -520,7 +674,6 @@ const SalesTaxModule = {
         </div>` : ''}
       </div>`;
 
-    // State select handler
     el.querySelector('#tax-state-select').addEventListener('change', (e) => {
       this.showStateDetails(e.target.value);
     });
@@ -563,10 +716,10 @@ const SalesTaxModule = {
   async applyState(stateCode) {
     try {
       await API.post('/api/sales-tax/config', { state_code: stateCode });
-      UI.toast(`${stateCode} tax configuration applied`);
+      UI.toast('Applied', `${stateCode} tax configuration applied`, 'success');
       this.renderConfig(document.getElementById('tax-content'));
     } catch (err) {
-      UI.toast(err.message, 'error');
+      UI.toast('Error', err.message, 'danger');
     }
   },
 
@@ -580,27 +733,35 @@ const SalesTaxModule = {
         special_district_rate: parseFloat(document.getElementById('cfg-special-rate').value) / 100 || 0,
         filing_frequency: document.getElementById('cfg-frequency').value,
       });
-      UI.toast('Local rates saved');
+      UI.toast('Saved', 'Local rates saved', 'success');
       this.renderConfig(document.getElementById('tax-content'));
     } catch (err) {
-      UI.toast(err.message, 'error');
+      UI.toast('Error', err.message, 'danger');
     }
   },
 
   // ---- REPORTS ----
   async renderReports(el) {
     const now = new Date();
-    const yearStart = `${now.getFullYear()}-01-01`;
-    const today = now.toISOString().slice(0, 10);
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
 
     el.innerHTML = `
       <div class="tax-reports">
         <div class="tax-section">
           <h3 class="tax-section-title">Generate Tax Report</h3>
           <p style="color:var(--text-secondary);margin:0 0 16px">Generate a detailed tax report for any date range. Export as CSV for your accountant or tax preparer.</p>
-          <div class="form-row">
-            <div class="form-group"><label>Start Date</label><input type="date" id="report-start" value="${yearStart}" /></div>
-            <div class="form-group"><label>End Date</label><input type="date" id="report-end" value="${today}" /></div>
+
+          <div class="tax-quick-periods">
+            <button class="btn-sm" onclick="SalesTaxModule.setReportPeriod('last-month')">Last Month</button>
+            <button class="btn-sm" onclick="SalesTaxModule.setReportPeriod('this-quarter')">This Quarter</button>
+            <button class="btn-sm" onclick="SalesTaxModule.setReportPeriod('last-quarter')">Last Quarter</button>
+            <button class="btn-sm" onclick="SalesTaxModule.setReportPeriod('ytd')">Year to Date</button>
+          </div>
+
+          <div class="form-row" style="margin-top:12px">
+            <div class="form-group"><label>Start Date</label><input type="date" id="report-start" value="${lastMonthStart.toISOString().slice(0, 10)}" /></div>
+            <div class="form-group"><label>End Date</label><input type="date" id="report-end" value="${lastMonthEnd.toISOString().slice(0, 10)}" /></div>
             <div class="form-group" style="display:flex;align-items:flex-end;gap:8px">
               <button class="btn-primary" onclick="SalesTaxModule.generateReport()">Generate Report</button>
               <button class="btn-secondary" onclick="SalesTaxModule.exportCSV()">Export CSV</button>
@@ -609,6 +770,43 @@ const SalesTaxModule = {
         </div>
         <div id="report-output"></div>
       </div>`;
+  },
+
+  setReportPeriod(preset) {
+    const now = new Date();
+    let start, end;
+
+    switch (preset) {
+      case 'last-month': {
+        const d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        start = d.toISOString().slice(0, 10);
+        end = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().slice(0, 10);
+        break;
+      }
+      case 'this-quarter': {
+        const qStart = Math.floor(now.getMonth() / 3) * 3;
+        start = `${now.getFullYear()}-${String(qStart + 1).padStart(2, '0')}-01`;
+        end = now.toISOString().slice(0, 10);
+        break;
+      }
+      case 'last-quarter': {
+        const qStart = Math.floor(now.getMonth() / 3) * 3 - 3;
+        const y = qStart < 0 ? now.getFullYear() - 1 : now.getFullYear();
+        const m = ((qStart % 12) + 12) % 12;
+        start = `${y}-${String(m + 1).padStart(2, '0')}-01`;
+        end = new Date(y, m + 3, 0).toISOString().slice(0, 10);
+        break;
+      }
+      case 'ytd': {
+        start = `${now.getFullYear()}-01-01`;
+        end = now.toISOString().slice(0, 10);
+        break;
+      }
+    }
+
+    document.getElementById('report-start').value = start;
+    document.getElementById('report-end').value = end;
+    this.generateReport();
   },
 
   async generateReport() {
@@ -635,13 +833,13 @@ const SalesTaxModule = {
           </div>
           <div class="tax-card compact">
             <div class="tax-card-label">Gross Sales</div>
-            <div class="tax-card-value">${Utils.money(s.gross_sales)}</div>
-          </div>
-          <div class="tax-card compact">
-            <div class="tax-card-label">Total Tax Collected</div>
-            <div class="tax-card-value">${Utils.money(s.total_tax)}</div>
+            <div class="tax-card-value">${Utils.currency(s.gross_sales)}</div>
           </div>
           <div class="tax-card compact accent">
+            <div class="tax-card-label">Total Tax Collected</div>
+            <div class="tax-card-value">${Utils.currency(s.total_tax)}</div>
+          </div>
+          <div class="tax-card compact">
             <div class="tax-card-label">Effective Rate</div>
             <div class="tax-card-value">${s.gross_sales > 0 ? ((s.total_tax / s.gross_sales) * 100).toFixed(2) : '0.00'}%</div>
           </div>
@@ -649,29 +847,35 @@ const SalesTaxModule = {
 
         <div class="tax-section-grid">
           <div class="tax-section">
-            <h4>By Category</h4>
+            <h4 style="margin:0 0 10px">By Category</h4>
             <table class="data-table compact">
-              <tr><td>Food & Meals</td><td>${Utils.money(s.food_sales)}</td><td>${Utils.money(s.food_tax)}</td></tr>
-              <tr><td>Beverages</td><td>${Utils.money(s.beverage_sales)}</td><td>${Utils.money(s.beverage_tax)}</td></tr>
-              <tr><td>Alcohol</td><td>${Utils.money(s.alcohol_sales)}</td><td>${Utils.money(s.alcohol_tax)}</td></tr>
-              <tr><td><strong>Total</strong></td><td><strong>${Utils.money(s.gross_sales)}</strong></td><td><strong>${Utils.money(s.total_tax)}</strong></td></tr>
+              <thead><tr><th>Category</th><th>Sales</th><th>Tax</th></tr></thead>
+              <tbody>
+                <tr><td>Food & Meals</td><td>${Utils.currency(s.food_sales)}</td><td>${Utils.currency(s.food_tax)}</td></tr>
+                <tr><td>Beverages</td><td>${Utils.currency(s.beverage_sales)}</td><td>${Utils.currency(s.beverage_tax)}</td></tr>
+                <tr><td>Alcohol</td><td>${Utils.currency(s.alcohol_sales)}</td><td>${Utils.currency(s.alcohol_tax)}</td></tr>
+                <tr><td><strong>Total</strong></td><td><strong>${Utils.currency(s.gross_sales)}</strong></td><td><strong>${Utils.currency(s.total_tax)}</strong></td></tr>
+              </tbody>
             </table>
           </div>
           <div class="tax-section">
-            <h4>By Jurisdiction</h4>
+            <h4 style="margin:0 0 10px">By Jurisdiction</h4>
             <table class="data-table compact">
-              <tr><td>State</td><td>${Utils.money(s.state_tax)}</td></tr>
-              <tr><td>County</td><td>${Utils.money(s.county_tax)}</td></tr>
-              <tr><td>City</td><td>${Utils.money(s.city_tax)}</td></tr>
-              <tr><td>Special</td><td>${Utils.money(s.special_tax)}</td></tr>
-              <tr><td><strong>Total</strong></td><td><strong>${Utils.money(s.total_tax)}</strong></td></tr>
+              <thead><tr><th>Jurisdiction</th><th>Tax Due</th></tr></thead>
+              <tbody>
+                <tr><td>State</td><td>${Utils.currency(s.state_tax)}</td></tr>
+                <tr><td>County</td><td>${Utils.currency(s.county_tax)}</td></tr>
+                <tr><td>City</td><td>${Utils.currency(s.city_tax)}</td></tr>
+                <tr><td>Special District</td><td>${Utils.currency(s.special_tax)}</td></tr>
+                <tr><td><strong>Total</strong></td><td><strong>${Utils.currency(s.total_tax)}</strong></td></tr>
+              </tbody>
             </table>
           </div>
         </div>
 
         ${data.monthly.length > 0 ? `
         <div class="tax-section">
-          <h4>Monthly Summary</h4>
+          <h4 style="margin:0 0 10px">Monthly Summary</h4>
           <table class="data-table">
             <thead><tr><th>Month</th><th>Transactions</th><th>Sales</th><th>Tax</th><th>State</th><th>County</th><th>City</th></tr></thead>
             <tbody>
@@ -679,11 +883,11 @@ const SalesTaxModule = {
                 <tr>
                   <td>${m.month}</td>
                   <td>${m.transactions}</td>
-                  <td>${Utils.money(m.sales)}</td>
-                  <td><strong>${Utils.money(m.tax)}</strong></td>
-                  <td>${Utils.money(m.state_tax)}</td>
-                  <td>${Utils.money(m.county_tax)}</td>
-                  <td>${Utils.money(m.city_tax)}</td>
+                  <td>${Utils.currency(m.sales)}</td>
+                  <td><strong>${Utils.currency(m.tax)}</strong></td>
+                  <td>${Utils.currency(m.state_tax)}</td>
+                  <td>${Utils.currency(m.county_tax)}</td>
+                  <td>${Utils.currency(m.city_tax)}</td>
                 </tr>
               `).join('')}
             </tbody>
@@ -705,14 +909,12 @@ const SalesTaxModule = {
     const currentMonth = now.getMonth() + 1;
     const currentDay = now.getDate();
 
-    // Find next upcoming deadline
     for (const d of deadlines) {
       if (d.month > currentMonth || (d.month === currentMonth && d.day_of_month >= currentDay)) {
         const year = now.getFullYear();
         return `${year}-${String(d.month).padStart(2, '0')}-${String(d.day_of_month).padStart(2, '0')}`;
       }
     }
-    // Wrap to next year's first deadline
     const d = deadlines[0];
     return `${now.getFullYear() + 1}-${String(d.month).padStart(2, '0')}-${String(d.day_of_month).padStart(2, '0')}`;
   },
