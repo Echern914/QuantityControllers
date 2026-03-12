@@ -190,6 +190,11 @@ router.get('/dashboard', authenticate, (req, res) => {
   const recentMessages = db.prepare("SELECT * FROM voicemail_messages ORDER BY created_at DESC LIMIT 5").all();
   const lines = db.prepare('SELECT id, name, mode, phone_number, active FROM voicemail_lines ORDER BY created_at DESC').all();
 
+  const totalMissedCalls = db.prepare('SELECT COUNT(*) as count FROM missed_calls').get().count;
+  const unreturnedMissedCalls = db.prepare('SELECT COUNT(*) as count FROM missed_calls WHERE returned = 0').get().count;
+  const todayMissedCalls = db.prepare("SELECT COUNT(*) as count FROM missed_calls WHERE date(created_at) = date('now')").get().count;
+  const recentMissedCalls = db.prepare("SELECT mc.*, vl.name as line_name FROM missed_calls mc LEFT JOIN voicemail_lines vl ON mc.line_id = vl.id ORDER BY mc.created_at DESC LIMIT 5").all();
+
   res.json({
     total_lines: totalLines,
     active_lines: activeLines,
@@ -199,7 +204,112 @@ router.get('/dashboard', authenticate, (req, res) => {
     pending_callbacks: pendingCallbacks,
     recent_messages: recentMessages,
     lines,
+    total_missed_calls: totalMissedCalls,
+    unreturned_missed_calls: unreturnedMissedCalls,
+    today_missed_calls: todayMissedCalls,
+    recent_missed_calls: recentMissedCalls,
   });
+});
+
+// ============================================================
+// MISSED CALLS
+// ============================================================
+
+// GET /api/voicemail/missed-calls - List missed calls
+router.get('/missed-calls', authenticate, (req, res) => {
+  const db = getDb();
+  const { line_id, returned, date_from, date_to, limit } = req.query;
+  let sql = 'SELECT mc.*, vl.name as line_name FROM missed_calls mc LEFT JOIN voicemail_lines vl ON mc.line_id = vl.id WHERE 1=1';
+  const params = [];
+  if (line_id) { sql += ' AND mc.line_id = ?'; params.push(line_id); }
+  if (returned !== undefined) { sql += ' AND mc.returned = ?'; params.push(parseInt(returned)); }
+  if (date_from) { sql += ' AND mc.created_at >= ?'; params.push(date_from); }
+  if (date_to) { sql += ' AND mc.created_at <= ?'; params.push(date_to); }
+  sql += ' ORDER BY mc.created_at DESC';
+  if (limit) { sql += ' LIMIT ?'; params.push(parseInt(limit)); }
+  res.json(db.prepare(sql).all(...params));
+});
+
+// GET /api/voicemail/missed-calls/stats - Missed call statistics
+router.get('/missed-calls/stats', authenticate, (req, res) => {
+  const db = getDb();
+  const total = db.prepare('SELECT COUNT(*) as count FROM missed_calls').get().count;
+  const unreturned = db.prepare('SELECT COUNT(*) as count FROM missed_calls WHERE returned = 0').get().count;
+  const today = db.prepare("SELECT COUNT(*) as count FROM missed_calls WHERE date(created_at) = date('now')").get().count;
+  const todayUnreturned = db.prepare("SELECT COUNT(*) as count FROM missed_calls WHERE date(created_at) = date('now') AND returned = 0").get().count;
+  const thisWeek = db.prepare("SELECT COUNT(*) as count FROM missed_calls WHERE created_at >= datetime('now', '-7 days')").get().count;
+
+  // Frequent callers (top repeat missed callers)
+  const frequentCallers = db.prepare(`
+    SELECT caller_phone, COUNT(*) as call_count, MAX(created_at) as last_call,
+           MIN(returned) as any_unreturned
+    FROM missed_calls
+    WHERE caller_phone IS NOT NULL AND caller_phone != '' AND caller_phone != 'Unknown'
+    GROUP BY caller_phone
+    HAVING call_count > 1
+    ORDER BY call_count DESC
+    LIMIT 10
+  `).all();
+
+  // Missed calls by hour (for pattern analysis)
+  const byHour = db.prepare(`
+    SELECT CAST(strftime('%H', created_at) AS INTEGER) as hour, COUNT(*) as count
+    FROM missed_calls
+    WHERE created_at >= datetime('now', '-30 days')
+    GROUP BY hour
+    ORDER BY hour
+  `).all();
+
+  res.json({
+    total,
+    unreturned,
+    today,
+    today_unreturned: todayUnreturned,
+    this_week: thisWeek,
+    return_rate: total > 0 ? Math.round(((total - unreturned) / total) * 100) : 0,
+    frequent_callers: frequentCallers,
+    by_hour: byHour,
+  });
+});
+
+// PUT /api/voicemail/missed-calls/:id - Update missed call (mark returned, add notes)
+router.put('/missed-calls/:id', authenticate, (req, res) => {
+  const db = getDb();
+  const { returned, notes } = req.body;
+  const updates = [];
+  const values = [];
+  if (notes !== undefined) { updates.push('notes = ?'); values.push(notes); }
+  if (returned !== undefined) {
+    updates.push('returned = ?');
+    values.push(returned ? 1 : 0);
+    if (returned) {
+      updates.push("returned_at = datetime('now')");
+      updates.push('returned_by = ?');
+      values.push(req.employee?.id || null);
+    }
+  }
+  if (updates.length === 0) return res.status(400).json({ error: 'No fields to update' });
+  values.push(req.params.id);
+  db.prepare(`UPDATE missed_calls SET ${updates.join(', ')} WHERE id = ?`).run(...values);
+  res.json({ message: 'Missed call updated' });
+});
+
+// DELETE /api/voicemail/missed-calls/:id
+router.delete('/missed-calls/:id', authenticate, (req, res) => {
+  const db = getDb();
+  db.prepare('DELETE FROM missed_calls WHERE id = ?').run(req.params.id);
+  res.json({ message: 'Missed call deleted' });
+});
+
+// POST /api/voicemail/missed-calls/return-all - Bulk mark as returned
+router.post('/missed-calls/return-all', authenticate, (req, res) => {
+  const db = getDb();
+  const { ids } = req.body;
+  if (!ids || !Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'No IDs provided' });
+  const placeholders = ids.map(() => '?').join(',');
+  db.prepare(`UPDATE missed_calls SET returned = 1, returned_at = datetime('now'), returned_by = ? WHERE id IN (${placeholders})`)
+    .run(req.employee?.id || null, ...ids);
+  res.json({ message: `${ids.length} calls marked as returned` });
 });
 
 // ============================================================
@@ -374,8 +484,14 @@ router.post('/webhook/status', express.urlencoded({ extended: false }), (req, re
   const callSid = req.body.CallSid;
   const callStatus = req.body.CallStatus;
   const duration = req.body.CallDuration;
+  const callerNumber = req.body.From || 'Unknown';
+  const calledNumber = req.body.To || '';
+  const callerCity = req.body.CallerCity || '';
+  const callerState = req.body.CallerState || '';
+  const callerCountry = req.body.CallerCountry || 'US';
 
-  if (callSid && (callStatus === 'completed' || callStatus === 'no-answer' || callStatus === 'failed')) {
+  if (callSid && (callStatus === 'completed' || callStatus === 'no-answer' || callStatus === 'failed' || callStatus === 'busy' || callStatus === 'canceled')) {
+    // Update voicemail message if one exists
     db.prepare(`
       UPDATE voicemail_messages
       SET duration_seconds = COALESCE(?, duration_seconds),
@@ -383,6 +499,27 @@ router.post('/webhook/status', express.urlencoded({ extended: false }), (req, re
           updated_at = datetime('now')
       WHERE call_sid = ?
     `).run(parseInt(duration) || null, callSid);
+
+    // Log missed call if no voicemail was left (no-answer, busy, canceled, or failed)
+    if (callStatus === 'no-answer' || callStatus === 'busy' || callStatus === 'canceled' || callStatus === 'failed') {
+      // Check if a voicemail message was recorded for this call
+      const hasVoicemail = db.prepare("SELECT id FROM voicemail_messages WHERE call_sid = ? AND status != 'in_progress'").get(callSid);
+      if (!hasVoicemail) {
+        const line = db.prepare('SELECT id FROM voicemail_lines WHERE phone_number = ?').get(calledNumber);
+        db.prepare(`
+          INSERT INTO missed_calls (line_id, caller_phone, caller_city, caller_state, caller_country, call_sid, call_status, ring_duration_seconds)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(line?.id || null, callerNumber, callerCity, callerState, callerCountry, callSid, callStatus, parseInt(duration) || 0);
+
+        // Broadcast missed call notification
+        try {
+          const broadcast = req.app.locals.broadcast;
+          if (broadcast) {
+            broadcast({ type: 'missed_call', caller_phone: callerNumber, line_id: line?.id });
+          }
+        } catch {}
+      }
+    }
   }
 
   res.status(200).send('OK');

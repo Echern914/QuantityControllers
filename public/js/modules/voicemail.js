@@ -12,6 +12,7 @@ const VoicemailModule = {
           <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
           <button class="tab-btn" data-tab="lines">Voicemail Lines</button>
           <button class="tab-btn" data-tab="messages">Messages</button>
+          <button class="tab-btn" data-tab="missed">Missed Calls</button>
           <button class="tab-btn" data-tab="setup">Setup Guide</button>
         </div>
         <div id="vm-content"></div>
@@ -34,6 +35,7 @@ const VoicemailModule = {
         case 'dashboard': return await this.renderDashboard(el);
         case 'lines': return await this.renderLines(el);
         case 'messages': return await this.renderMessages(el);
+        case 'missed': return await this.renderMissedCalls(el);
         case 'setup': return await this.renderSetup(el);
       }
     } catch (err) { el.innerHTML = `<div class="empty-state"><p>${Utils.escapeHtml(err.message)}</p></div>`; }
@@ -50,6 +52,26 @@ const VoicemailModule = {
         ${UI.statCard('Unread Messages', d.unread_messages, '')}
         ${UI.statCard('Today\'s Calls', d.today_messages, '')}
         ${UI.statCard('Pending Callbacks', d.pending_callbacks, '')}
+      </div>
+      <div class="grid grid-3 gap-md mb-md">
+        <div class="card" style="border-left:4px solid var(--danger)">
+          <div class="card-body" style="text-align:center">
+            <div style="font-size:2rem;font-weight:700;color:var(--danger)">${d.today_missed_calls || 0}</div>
+            <div class="text-sm text-muted">Missed Calls Today</div>
+          </div>
+        </div>
+        <div class="card" style="border-left:4px solid var(--warning)">
+          <div class="card-body" style="text-align:center">
+            <div style="font-size:2rem;font-weight:700;color:var(--warning)">${d.unreturned_missed_calls || 0}</div>
+            <div class="text-sm text-muted">Unreturned Missed Calls</div>
+          </div>
+        </div>
+        <div class="card" style="border-left:4px solid var(--success)">
+          <div class="card-body" style="text-align:center">
+            <div style="font-size:2rem;font-weight:700;color:var(--success)">${d.total_missed_calls > 0 ? Math.round(((d.total_missed_calls - d.unreturned_missed_calls) / d.total_missed_calls) * 100) : 100}%</div>
+            <div class="text-sm text-muted">Return Rate</div>
+          </div>
+        </div>
       </div>
       <div class="grid grid-2 gap-md mb-md">
         <div class="card">
@@ -86,6 +108,26 @@ const VoicemailModule = {
                 </tr>`).join('')}
               </tbody></table>`}
           </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header flex items-center justify-between">
+          <h3>Recent Missed Calls</h3>
+          <button class="btn btn-sm btn-outline" onclick="VoicemailModule.tab='missed';document.querySelector('[data-tab=missed]').click()">View All</button>
+        </div>
+        <div class="card-body" style="padding:0">
+          ${(d.recent_missed_calls || []).length === 0 ? '<p class="text-muted text-sm" style="padding:20px;text-align:center">No missed calls</p>' :
+            `<table class="data-table"><thead><tr>
+              <th>Caller</th><th>Location</th><th>Line</th><th>Time</th><th>Returned</th>
+            </tr></thead><tbody>
+              ${d.recent_missed_calls.map(c => `<tr>
+                <td><strong>${Utils.escapeHtml(c.caller_phone || 'Unknown')}</strong></td>
+                <td>${Utils.escapeHtml([c.caller_city, c.caller_state].filter(Boolean).join(', ') || '-')}</td>
+                <td>${Utils.escapeHtml(c.line_name || '-')}</td>
+                <td>${new Date(c.created_at).toLocaleString()}</td>
+                <td>${c.returned ? '<span class="badge badge-success">Returned</span>' : '<span class="badge badge-danger">Not Returned</span>'}</td>
+              </tr>`).join('')}
+            </tbody></table>`}
         </div>
       </div>`;
   },
@@ -421,6 +463,163 @@ const VoicemailModule = {
   async deleteMessage(id) {
     if (!confirm('Delete this message?')) return;
     await API.delete(`/api/voicemail/messages/${id}`);
+    this.loadTab(document.getElementById('vm-content'));
+  },
+
+  // ============================================================
+  // MISSED CALLS
+  // ============================================================
+  async renderMissedCalls(el) {
+    const [calls, stats] = await Promise.all([
+      API.get('/api/voicemail/missed-calls'),
+      API.get('/api/voicemail/missed-calls/stats'),
+    ]);
+
+    el.innerHTML = `
+      <div class="grid grid-4 gap-md mb-md">
+        <div class="card" style="border-left:4px solid var(--danger)">
+          <div class="card-body" style="text-align:center">
+            <div style="font-size:1.8rem;font-weight:700;color:var(--danger)">${stats.today}</div>
+            <div class="text-sm text-muted">Today</div>
+          </div>
+        </div>
+        <div class="card" style="border-left:4px solid var(--warning)">
+          <div class="card-body" style="text-align:center">
+            <div style="font-size:1.8rem;font-weight:700;color:var(--warning)">${stats.unreturned}</div>
+            <div class="text-sm text-muted">Unreturned</div>
+          </div>
+        </div>
+        <div class="card" style="border-left:4px solid var(--info)">
+          <div class="card-body" style="text-align:center">
+            <div style="font-size:1.8rem;font-weight:700">${stats.this_week}</div>
+            <div class="text-sm text-muted">This Week</div>
+          </div>
+        </div>
+        <div class="card" style="border-left:4px solid var(--success)">
+          <div class="card-body" style="text-align:center">
+            <div style="font-size:1.8rem;font-weight:700;color:var(--success)">${stats.return_rate}%</div>
+            <div class="text-sm text-muted">Return Rate</div>
+          </div>
+        </div>
+      </div>
+
+      ${stats.frequent_callers.length > 0 ? `
+      <div class="card mb-md">
+        <div class="card-header"><h3>Repeat Missed Callers</h3></div>
+        <div class="card-body" style="padding:0">
+          <table class="data-table"><thead><tr>
+            <th>Phone Number</th><th>Times Missed</th><th>Last Call</th><th>Status</th><th>Action</th>
+          </tr></thead><tbody>
+            ${stats.frequent_callers.map(c => `<tr>
+              <td><strong>${Utils.escapeHtml(c.caller_phone)}</strong></td>
+              <td><span class="badge badge-danger">${c.call_count}x</span></td>
+              <td>${new Date(c.last_call).toLocaleString()}</td>
+              <td>${c.any_unreturned === 0 ? '<span class="badge badge-success">All Returned</span>' : '<span class="badge badge-warning">Has Unreturned</span>'}</td>
+              <td><button class="btn btn-xs btn-primary" onclick="VoicemailModule.returnCallsByPhone('${Utils.escapeHtml(c.caller_phone)}')">Mark All Returned</button></td>
+            </tr>`).join('')}
+          </tbody></table>
+        </div>
+      </div>` : ''}
+
+      ${stats.by_hour.length > 0 ? `
+      <div class="card mb-md">
+        <div class="card-header"><h3>Missed Calls by Hour (Last 30 Days)</h3></div>
+        <div class="card-body">
+          <div style="display:flex;align-items:flex-end;gap:2px;height:120px;padding:0 4px">
+            ${Array.from({length: 24}, (_, h) => {
+              const hourData = stats.by_hour.find(b => b.hour === h);
+              const count = hourData ? hourData.count : 0;
+              const maxCount = Math.max(...stats.by_hour.map(b => b.count), 1);
+              const height = Math.max((count / maxCount) * 100, 2);
+              const label = h === 0 ? '12a' : h < 12 ? h + 'a' : h === 12 ? '12p' : (h-12) + 'p';
+              return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
+                <div class="text-xs" style="color:var(--text-muted)">${count || ''}</div>
+                <div style="width:100%;height:${height}%;background:${count > 0 ? 'var(--danger)' : 'var(--border)'};border-radius:3px 3px 0 0;min-height:2px" title="${label}: ${count} missed calls"></div>
+                <div class="text-xs" style="color:var(--text-muted);font-size:0.65rem">${h % 3 === 0 ? label : ''}</div>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>
+      </div>` : ''}
+
+      <div class="flex items-center justify-between mb-md">
+        <h3 style="margin:0">All Missed Calls (${calls.length})</h3>
+        <div class="flex gap-sm">
+          <select id="mc-filter" class="form-control" style="width:auto" onchange="VoicemailModule.filterMissedCalls()">
+            <option value="">All</option>
+            <option value="unreturned">Unreturned Only</option>
+            <option value="returned">Returned Only</option>
+          </select>
+          ${calls.filter(c => !c.returned).length > 0 ? `<button class="btn btn-sm btn-primary" onclick="VoicemailModule.markAllReturned()">Mark All Returned</button>` : ''}
+        </div>
+      </div>
+
+      ${calls.length === 0 ? '<div class="empty-state"><h3>No missed calls</h3><p>Missed calls will appear here when callers hang up without leaving a voicemail.</p></div>' :
+        `<div class="card"><div class="card-body" style="padding:0">
+          <table class="data-table" id="mc-table"><thead><tr>
+            <th>Status</th><th>Caller</th><th>Location</th><th>Line</th><th>Type</th><th>Time</th><th>Actions</th>
+          </tr></thead><tbody>
+            ${calls.map(c => `<tr data-returned="${c.returned}" data-id="${c.id}" style="${!c.returned ? 'background:rgba(239,68,68,0.05)' : ''}">
+              <td>${c.returned ? '<span class="badge badge-success">Returned</span>' : '<span class="badge badge-danger">Missed</span>'}</td>
+              <td><strong>${Utils.escapeHtml(c.caller_phone || 'Unknown')}</strong></td>
+              <td>${Utils.escapeHtml([c.caller_city, c.caller_state].filter(Boolean).join(', ') || '-')}</td>
+              <td>${Utils.escapeHtml(c.line_name || '-')}</td>
+              <td><span class="badge badge-default">${c.call_status || 'no-answer'}</span></td>
+              <td>${new Date(c.created_at).toLocaleString()}</td>
+              <td>
+                <div class="flex gap-xs">
+                  ${!c.returned ? `<button class="btn btn-xs btn-success" onclick="VoicemailModule.markCallReturned(${c.id})">Returned</button>` : ''}
+                  <button class="btn btn-xs btn-outline" onclick="VoicemailModule.addMissedCallNote(${c.id})">Note</button>
+                  <button class="btn btn-xs btn-danger" onclick="VoicemailModule.deleteMissedCall(${c.id})">Del</button>
+                </div>
+              </td>
+            </tr>`).join('')}
+          </tbody></table>
+        </div></div>`}`;
+  },
+
+  filterMissedCalls() {
+    const filter = document.getElementById('mc-filter').value;
+    const rows = document.querySelectorAll('#mc-table tbody tr');
+    rows.forEach(row => {
+      if (!filter) { row.style.display = ''; return; }
+      const returned = row.dataset.returned === '1';
+      row.style.display = (filter === 'returned' && returned) || (filter === 'unreturned' && !returned) ? '' : 'none';
+    });
+  },
+
+  async markCallReturned(id) {
+    await API.put(`/api/voicemail/missed-calls/${id}`, { returned: 1 });
+    this.loadTab(document.getElementById('vm-content'));
+  },
+
+  async markAllReturned() {
+    const rows = document.querySelectorAll('#mc-table tbody tr[data-returned="0"]');
+    const ids = Array.from(rows).map(r => parseInt(r.dataset.id));
+    if (ids.length === 0) return;
+    if (!confirm(`Mark ${ids.length} missed call(s) as returned?`)) return;
+    await API.post('/api/voicemail/missed-calls/return-all', { ids });
+    this.loadTab(document.getElementById('vm-content'));
+  },
+
+  async returnCallsByPhone(phone) {
+    const calls = await API.get('/api/voicemail/missed-calls?returned=0');
+    const ids = calls.filter(c => c.caller_phone === phone).map(c => c.id);
+    if (ids.length === 0) return alert('All calls from this number are already returned.');
+    await API.post('/api/voicemail/missed-calls/return-all', { ids });
+    this.loadTab(document.getElementById('vm-content'));
+  },
+
+  async addMissedCallNote(id) {
+    const note = prompt('Add a note for this missed call:');
+    if (note === null) return;
+    await API.put(`/api/voicemail/missed-calls/${id}`, { notes: note });
+    this.loadTab(document.getElementById('vm-content'));
+  },
+
+  async deleteMissedCall(id) {
+    if (!confirm('Delete this missed call record?')) return;
+    await API.delete(`/api/voicemail/missed-calls/${id}`);
     this.loadTab(document.getElementById('vm-content'));
   },
 

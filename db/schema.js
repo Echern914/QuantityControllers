@@ -1767,6 +1767,33 @@ function initializeSchema() {
     CREATE INDEX IF NOT EXISTS idx_voicemail_messages_line ON voicemail_messages(line_id);
     CREATE INDEX IF NOT EXISTS idx_voicemail_messages_status ON voicemail_messages(status);
     CREATE INDEX IF NOT EXISTS idx_voicemail_messages_created ON voicemail_messages(created_at);
+
+    -- ============================================================
+    -- MISSED CALLS
+    -- ============================================================
+    CREATE TABLE IF NOT EXISTS missed_calls (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      line_id INTEGER,
+      caller_phone TEXT,
+      caller_city TEXT,
+      caller_state TEXT,
+      caller_country TEXT DEFAULT 'US',
+      call_sid TEXT,
+      call_status TEXT DEFAULT 'no-answer',
+      ring_duration_seconds INTEGER DEFAULT 0,
+      returned INTEGER DEFAULT 0,
+      returned_at DATETIME,
+      returned_by INTEGER,
+      notes TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (line_id) REFERENCES voicemail_lines(id) ON DELETE CASCADE,
+      FOREIGN KEY (returned_by) REFERENCES employees(id) ON DELETE SET NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_missed_calls_line ON missed_calls(line_id);
+    CREATE INDEX IF NOT EXISTS idx_missed_calls_phone ON missed_calls(caller_phone);
+    CREATE INDEX IF NOT EXISTS idx_missed_calls_created ON missed_calls(created_at);
+    CREATE INDEX IF NOT EXISTS idx_missed_calls_returned ON missed_calls(returned);
   `);
 
   // Insert default settings
