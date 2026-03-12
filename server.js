@@ -60,6 +60,7 @@ app.use('/api/forecasting', require('./routes/forecasting'));
 app.use('/api/reorder', require('./routes/reorder'));
 app.use('/api/clover', require('./routes/clover'));
 app.use('/api/drink-deduction', require('./routes/drink-deduction'));
+app.use('/api/sales-tax', require('./routes/sales-tax'));
 
 // SSE endpoint
 app.get('/api/events', (req, res) => {

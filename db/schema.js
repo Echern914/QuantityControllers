@@ -1446,6 +1446,143 @@ function initializeSchema() {
       UNIQUE(merchant_id, entity_type, clover_id)
     );
 
+    -- ============================================================
+    -- SALES TAX MANAGEMENT
+    -- ============================================================
+    CREATE TABLE IF NOT EXISTS sales_tax_config (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      state_code TEXT NOT NULL,
+      state_name TEXT NOT NULL,
+      state_rate REAL NOT NULL DEFAULT 0,
+      county_name TEXT,
+      county_rate REAL DEFAULT 0,
+      city_name TEXT,
+      city_rate REAL DEFAULT 0,
+      special_district_rate REAL DEFAULT 0,
+      combined_rate REAL GENERATED ALWAYS AS (state_rate + county_rate + city_rate + special_district_rate) STORED,
+      food_taxed INTEGER DEFAULT 1,
+      food_rate_override REAL,
+      alcohol_rate_override REAL,
+      has_reduced_food_rate INTEGER DEFAULT 0,
+      filing_frequency TEXT DEFAULT 'monthly',
+      active INTEGER DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS sales_tax_rules (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      config_id INTEGER NOT NULL,
+      rule_type TEXT NOT NULL,
+      description TEXT NOT NULL,
+      category TEXT,
+      exempt INTEGER DEFAULT 0,
+      special_rate REAL,
+      notes TEXT,
+      FOREIGN KEY (config_id) REFERENCES sales_tax_config(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS sales_tax_collected (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      order_id INTEGER,
+      order_number TEXT,
+      sale_date DATE NOT NULL,
+      subtotal REAL NOT NULL DEFAULT 0,
+      food_amount REAL DEFAULT 0,
+      beverage_amount REAL DEFAULT 0,
+      alcohol_amount REAL DEFAULT 0,
+      other_amount REAL DEFAULT 0,
+      tax_rate REAL NOT NULL,
+      food_tax REAL DEFAULT 0,
+      beverage_tax REAL DEFAULT 0,
+      alcohol_tax REAL DEFAULT 0,
+      other_tax REAL DEFAULT 0,
+      total_tax REAL NOT NULL DEFAULT 0,
+      state_portion REAL DEFAULT 0,
+      county_portion REAL DEFAULT 0,
+      city_portion REAL DEFAULT 0,
+      special_portion REAL DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (order_id) REFERENCES orders(id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_tax_collected_date ON sales_tax_collected(sale_date);
+    CREATE INDEX IF NOT EXISTS idx_tax_collected_order ON sales_tax_collected(order_id);
+
+    CREATE TABLE IF NOT EXISTS sales_tax_filings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      period_start DATE NOT NULL,
+      period_end DATE NOT NULL,
+      filing_frequency TEXT NOT NULL,
+      state_code TEXT NOT NULL,
+      total_gross_sales REAL DEFAULT 0,
+      total_taxable_sales REAL DEFAULT 0,
+      total_exempt_sales REAL DEFAULT 0,
+      total_tax_collected REAL DEFAULT 0,
+      state_tax_due REAL DEFAULT 0,
+      county_tax_due REAL DEFAULT 0,
+      city_tax_due REAL DEFAULT 0,
+      special_tax_due REAL DEFAULT 0,
+      total_tax_due REAL DEFAULT 0,
+      adjustments REAL DEFAULT 0,
+      penalties REAL DEFAULT 0,
+      status TEXT DEFAULT 'pending',
+      due_date DATE,
+      filed_date DATE,
+      confirmation_number TEXT,
+      notes TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_tax_filings_period ON sales_tax_filings(period_start, period_end);
+    CREATE INDEX IF NOT EXISTS idx_tax_filings_status ON sales_tax_filings(status);
+
+    CREATE TABLE IF NOT EXISTS sales_tax_filing_deadlines (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      state_code TEXT NOT NULL,
+      frequency TEXT NOT NULL,
+      month INTEGER,
+      day_of_month INTEGER NOT NULL,
+      description TEXT,
+      active INTEGER DEFAULT 1
+    );
+
+    CREATE TABLE IF NOT EXISTS state_tax_profiles (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      state_code TEXT UNIQUE NOT NULL,
+      state_name TEXT NOT NULL,
+      base_sales_tax_rate REAL NOT NULL DEFAULT 0,
+      max_local_rate REAL DEFAULT 0,
+      avg_combined_rate REAL DEFAULT 0,
+      food_taxed INTEGER DEFAULT 1,
+      food_reduced_rate REAL,
+      alcohol_extra_rate REAL DEFAULT 0,
+      prepared_food_taxed INTEGER DEFAULT 1,
+      grocery_taxed INTEGER DEFAULT 0,
+      filing_frequencies TEXT DEFAULT '["monthly"]',
+      tax_holidays TEXT,
+      notes TEXT,
+      last_updated DATE
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_state_profiles_code ON state_tax_profiles(state_code);
+
+    CREATE TABLE IF NOT EXISTS sales_tax_exemptions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      config_id INTEGER,
+      customer_id INTEGER,
+      exemption_type TEXT NOT NULL,
+      certificate_number TEXT,
+      issuing_state TEXT,
+      expiration_date DATE,
+      notes TEXT,
+      active INTEGER DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (config_id) REFERENCES sales_tax_config(id),
+      FOREIGN KEY (customer_id) REFERENCES customers(id)
+    );
+
     CREATE TABLE IF NOT EXISTS anomaly_log (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       anomaly_type TEXT NOT NULL,
@@ -1578,6 +1715,84 @@ function initializeSchema() {
   ];
   for (const [name, type, rate, match] of taxRates) {
     insertTax.run(name, type, rate, match);
+  }
+
+  // Seed all 50 state tax profiles (restaurant/bar-focused)
+  const insertStateProfile = db.prepare(`INSERT OR IGNORE INTO state_tax_profiles (state_code, state_name, base_sales_tax_rate, max_local_rate, avg_combined_rate, food_taxed, food_reduced_rate, alcohol_extra_rate, prepared_food_taxed, grocery_taxed, filing_frequencies, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+  const stateProfiles = [
+    ['AL', 'Alabama',           0.04,   0.075, 0.0922, 1, null,  0,     1, 1, '["monthly"]', 'Prepared food taxed at full rate. Groceries taxed at reduced state rate in some counties.'],
+    ['AK', 'Alaska',            0,      0.075, 0.0176, 0, null,  0,     0, 0, '["quarterly"]', 'No state sales tax. Some municipalities levy local sales tax.'],
+    ['AZ', 'Arizona',           0.056,  0.058, 0.0840, 1, null,  0,     1, 0, '["monthly"]', 'Uses Transaction Privilege Tax (TPT). Prepared food taxable; groceries exempt.'],
+    ['AR', 'Arkansas',          0.065,  0.0525,0.0947, 1, 0.005, 0,     1, 1, '["monthly"]', 'Groceries taxed at reduced 0.125%. Prepared food at full rate + local.'],
+    ['CA', 'California',        0.0725, 0.035, 0.0868, 1, null,  0,     1, 0, '["monthly","quarterly"]', 'Prepared food taxable. Groceries exempt. Alcohol taxed at standard rate.'],
+    ['CO', 'Colorado',          0.029,  0.083, 0.0777, 0, null,  0,     1, 0, '["monthly"]', 'Groceries exempt from state tax. Prepared food taxable. Complex local tax rules.'],
+    ['CT', 'Connecticut',       0.0635, 0,     0.0635, 1, null,  0,     1, 0, '["monthly"]', 'Meals over $50 taxed at 7.35%. Standard meals at 6.35%. No local taxes.'],
+    ['DE', 'Delaware',          0,      0,     0,      0, null,  0,     0, 0, '["monthly"]', 'No sales tax. Gross receipts tax applies to businesses instead.'],
+    ['FL', 'Florida',           0.06,   0.025, 0.0701, 1, null,  0,     1, 0, '["monthly"]', 'Prepared food taxable. Groceries exempt. Discretionary surtax varies by county.'],
+    ['GA', 'Georgia',           0.04,   0.05,  0.0732, 1, null,  0,     1, 0, '["monthly"]', 'Prepared food taxable. Groceries exempt from state but may have local tax.'],
+    ['HI', 'Hawaii',            0.04,   0.005, 0.0444, 1, null,  0,     1, 1, '["monthly","quarterly"]', 'Uses General Excise Tax (GET). All food taxable. Rate is on gross income.'],
+    ['ID', 'Idaho',             0.06,   0.03,  0.0602, 1, null,  0,     1, 1, '["monthly"]', 'All food including groceries taxable at full rate.'],
+    ['IL', 'Illinois',          0.0625, 0.0475,0.0882, 1, 0.01,  0.0025,1, 0, '["monthly"]', 'Groceries at 1%. Prepared food at full rate. Chicago has additional taxes on restaurants.'],
+    ['IN', 'Indiana',           0.07,   0,     0.07,   1, null,  0,     1, 0, '["monthly"]', 'Prepared food taxable. Groceries exempt. No local option sales tax.'],
+    ['IA', 'Iowa',              0.06,   0.01,  0.0694, 1, null,  0,     1, 0, '["monthly","quarterly"]', 'Prepared food taxable. Groceries exempt from state tax.'],
+    ['KS', 'Kansas',            0.065,  0.04,  0.0877, 1, null,  0,     1, 1, '["monthly"]', 'All food including groceries taxable. State reducing grocery rate to 0% by 2025.'],
+    ['KY', 'Kentucky',          0.06,   0,     0.06,   1, null,  0,     1, 0, '["monthly"]', 'Restaurant meals taxed at 6%. Groceries exempt. No local sales taxes.'],
+    ['LA', 'Louisiana',         0.0445, 0.07,  0.0956, 1, null,  0,     1, 0, '["monthly"]', 'Prepared food taxable at full combined rate. Groceries exempt from state.'],
+    ['ME', 'Maine',             0.055,  0,     0.055,  1, null,  0,     1, 0, '["monthly"]', 'Prepared food at 8%. Groceries exempt. No local sales tax.'],
+    ['MD', 'Maryland',          0.06,   0,     0.06,   1, null,  0.09,  1, 0, '["monthly"]', 'Meals taxed at 6%. Alcohol has separate 9% tax. Groceries exempt.'],
+    ['MA', 'Massachusetts',     0.0625, 0,     0.0625, 1, null,  0,     1, 0, '["monthly"]', 'Meals taxed at 6.25%. Groceries exempt. Some cities add 0.75% local meals tax.'],
+    ['MI', 'Michigan',          0.06,   0,     0.06,   1, null,  0,     1, 0, '["monthly"]', 'Prepared food taxable at 6%. Groceries exempt. No local sales taxes.'],
+    ['MN', 'Minnesota',         0.06875,0.02,  0.0777, 1, null,  0.025, 1, 0, '["monthly"]', 'Prepared food taxable. Groceries exempt. Liquor has additional 2.5% tax.'],
+    ['MS', 'Mississippi',       0.07,   0.0025,0.0707, 1, null,  0,     1, 1, '["monthly"]', 'All food taxable at 7%. Restaurants included. One of the highest food tax states.'],
+    ['MO', 'Missouri',          0.04225,0.0563,0.0825, 1, 0.01225,0,    1, 0, '["monthly","quarterly"]', 'Groceries at reduced 1.225%. Prepared food at full rate.'],
+    ['MT', 'Montana',           0,      0.03,  0,      0, null,  0,     0, 0, '["quarterly"]', 'No state sales tax. Some resort communities levy local tax up to 3%.'],
+    ['NE', 'Nebraska',          0.055,  0.025, 0.0694, 1, null,  0,     1, 0, '["monthly","quarterly"]', 'Prepared food taxable. Groceries exempt from state tax.'],
+    ['NV', 'Nevada',            0.0685, 0.0138,0.0823, 1, null,  0,     1, 0, '["monthly"]', 'Prepared food taxable. Groceries exempt. No separate alcohol sales tax.'],
+    ['NH', 'New Hampshire',     0,      0,     0,      0, null,  0,     0, 0, '["monthly"]', 'No sales tax. Meals & rooms tax of 8.5% applies to restaurant food.'],
+    ['NJ', 'New Jersey',        0.06625,0,     0.06625,0, null,  0,     1, 0, '["monthly","quarterly"]', 'Prepared food taxable. Groceries exempt. No local sales taxes.'],
+    ['NM', 'New Mexico',        0.05125,0.0481,0.0783, 1, null,  0,     1, 1, '["monthly"]', 'Uses Gross Receipts Tax. All food including groceries taxable.'],
+    ['NY', 'New York',          0.04,   0.045, 0.0852, 0, null,  0,     1, 0, '["monthly","quarterly"]', 'Prepared food taxable. Groceries exempt. NYC adds 4.5% city tax.'],
+    ['NC', 'North Carolina',    0.0475, 0.0275,0.0696, 1, null,  0,     1, 0, '["monthly"]', 'Prepared food taxable at full rate. Groceries at 2%. Local taxes apply.'],
+    ['ND', 'North Dakota',      0.05,   0.035, 0.0696, 1, null,  0,     1, 0, '["monthly","quarterly"]', 'Prepared food taxable. Groceries exempt from state tax.'],
+    ['OH', 'Ohio',              0.0575, 0.0225,0.0724, 1, null,  0,     1, 0, '["monthly"]', 'Prepared food taxable. Groceries exempt. County permissive taxes apply.'],
+    ['OK', 'Oklahoma',          0.045,  0.07,  0.0895, 1, null,  0,     1, 1, '["monthly"]', 'All food including groceries taxable at full state+local rate.'],
+    ['OR', 'Oregon',            0,      0,     0,      0, null,  0,     0, 0, '["quarterly"]', 'No state or local sales tax. Some cities have small business taxes.'],
+    ['PA', 'Pennsylvania',      0.06,   0.02,  0.0634, 0, null,  0,     1, 0, '["monthly"]', 'Prepared food taxable. Groceries exempt. Philadelphia adds 2% local tax.'],
+    ['RI', 'Rhode Island',      0.07,   0,     0.07,   1, null,  0.01,  1, 0, '["monthly"]', 'Meals taxed at 8% (7% state + 1% meals tax). Groceries exempt.'],
+    ['SC', 'South Carolina',    0.06,   0.03,  0.0746, 1, null,  0,     1, 0, '["monthly"]', 'Prepared food taxable. Groceries exempt from state. Local taxes apply.'],
+    ['SD', 'South Dakota',      0.042,  0.04,  0.0640, 1, null,  0,     1, 1, '["monthly","quarterly"]', 'All food including groceries taxable at full rate.'],
+    ['TN', 'Tennessee',         0.07,   0.0275,0.0755, 1, 0.04,  0,     1, 1, '["monthly"]', 'Groceries at reduced 4%. Prepared food at full 7%+ rate.'],
+    ['TX', 'Texas',             0.0625, 0.02,  0.0819, 1, null,  0,     1, 0, '["monthly","quarterly"]', 'Prepared food taxable. Groceries exempt. Mixed beverage tax of 6.7% on alcohol.'],
+    ['UT', 'Utah',              0.0485, 0.0395,0.0726, 1, 0.03,  0,     1, 1, '["monthly","quarterly"]', 'Groceries at reduced 3%. Prepared food at full rate. Restaurant tax applies.'],
+    ['VT', 'Vermont',           0.06,   0.01,  0.0634, 1, null,  0.10,  1, 0, '["monthly","quarterly"]', 'Prepared food at 9% (meals tax). Groceries exempt. Alcohol 10% tax.'],
+    ['VA', 'Virginia',          0.043,  0.017, 0.0575, 1, 0.025, 0,     1, 0, '["monthly"]', 'Groceries at reduced 2.5%. Prepared food at full rate. Some areas add food tax.'],
+    ['WA', 'Washington',        0.065,  0.04,  0.1029, 1, null,  0,     1, 0, '["monthly"]', 'Prepared food taxable. Groceries exempt. High combined rates in Seattle area.'],
+    ['WV', 'West Virginia',     0.06,   0.01,  0.0651, 1, null,  0,     1, 0, '["monthly"]', 'Prepared food taxable at 6%. Groceries exempt from state. Local can add 1%.'],
+    ['WI', 'Wisconsin',         0.05,   0.0175,0.0543, 1, null,  0,     1, 0, '["monthly","quarterly"]', 'Prepared food taxable. Groceries exempt. County tax up to 0.5%.'],
+    ['WY', 'Wyoming',           0.04,   0.02,  0.0536, 1, null,  0,     1, 0, '["monthly","quarterly"]', 'Prepared food taxable. Groceries exempt from state tax.'],
+    ['DC', 'District of Columbia',0.06, 0,     0.10,   1, null,  0.10,  1, 0, '["monthly"]', 'Restaurant meals taxed at 10%. Groceries exempt. Alcohol at 10%.'],
+  ];
+  for (const [code, name, rate, maxLocal, avgCombined, foodTaxed, foodReduced, alcoholExtra, prepFood, grocery, freq, notes] of stateProfiles) {
+    insertStateProfile.run(code, name, rate, maxLocal, avgCombined, foodTaxed, foodReduced, alcoholExtra, prepFood, grocery, freq, notes);
+  }
+
+  // Seed filing deadline templates (general deadlines by frequency)
+  const insertDeadline = db.prepare(`INSERT OR IGNORE INTO sales_tax_filing_deadlines (state_code, frequency, month, day_of_month, description) VALUES (?, ?, ?, ?, ?)`);
+  // Monthly filers: generally due 20th of the following month
+  for (const [code] of stateProfiles) {
+    if (code === 'AK' || code === 'DE' || code === 'MT' || code === 'NH' || code === 'OR') continue;
+    for (let m = 1; m <= 12; m++) {
+      insertDeadline.run(code, 'monthly', m, 20, `Monthly sales tax return - ${code}`);
+    }
+  }
+  // Quarterly filers: due 20th of month after quarter ends
+  const qMonths = [4, 7, 10, 1];
+  const qDesc = ['Q1 (Jan-Mar)', 'Q2 (Apr-Jun)', 'Q3 (Jul-Sep)', 'Q4 (Oct-Dec)'];
+  for (const [code] of stateProfiles) {
+    if (code === 'DE' || code === 'NH' || code === 'OR') continue;
+    for (let q = 0; q < 4; q++) {
+      insertDeadline.run(code, 'quarterly', qMonths[q], 20, `Quarterly sales tax return ${qDesc[q]} - ${code}`);
+    }
   }
 
   // Seed default primary location

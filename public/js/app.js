@@ -20,7 +20,15 @@ const App = {
       try {
         const data = await API.me();
         this.employee = data.employee;
+        // Restore demo mode if this is a demo session
+        if (this.employee && this.employee.email && this.employee.email.includes('@venuecore.pos')) {
+          this.demoMode = true;
+        }
         this.showApp();
+        // If demo mode, restore banner and offer to resume tour
+        if (this.demoMode) {
+          this.showDemoBanner();
+        }
       } catch {
         API.setToken(null);
         this.showLogin();
@@ -211,7 +219,8 @@ const App = {
         DEMO MODE - All data is temporary
       </div>
       <div class="demo-banner-actions">
-        <button class="demo-banner-btn" onclick="DemoTour.start()">Restart Tour</button>
+        <button class="demo-banner-btn" onclick="DemoTour.resume()">Resume Tour</button>
+        <button class="demo-banner-btn" onclick="DemoTour.start(0)">Restart Tour</button>
         <button class="demo-banner-btn demo-banner-btn-exit" onclick="App.exitDemo()">Exit Demo</button>
       </div>
     `;
@@ -367,6 +376,7 @@ const App = {
             { route: 'payroll', label: 'Payroll', icon: '' },
             { route: 'ap', label: 'AP Automation', icon: '' },
             { route: 'banking', label: 'Banking', icon: '' },
+            { route: 'sales-tax', label: 'Sales Tax', icon: '' },
           ]
         },
         {
@@ -452,6 +462,7 @@ const App = {
       marketing: { title: 'Marketing', module: MarketingModule },
       forecasting: { title: 'Forecasting', module: ForecastingModule },
       clover: { title: 'Clover Integration', module: CloverModule },
+      'sales-tax': { title: 'Sales Tax', module: SalesTaxModule },
     };
 
     const page = modules[route] || modules.dashboard;
