@@ -386,6 +386,7 @@ const App = {
             { route: 'training', label: 'Training', icon: '' },
             { route: 'catering', label: 'Catering', icon: '' },
             { route: 'marketing', label: 'Marketing', icon: '' },
+            { route: 'voicemail', label: 'Voicemail', icon: '' },
             { route: 'forecasting', label: 'Forecasting', icon: '' },
             { route: 'clover', label: 'Clover', icon: '' },
           ]
@@ -463,6 +464,7 @@ const App = {
       forecasting: { title: 'Forecasting', module: ForecastingModule },
       clover: { title: 'Clover Integration', module: CloverModule },
       'sales-tax': { title: 'Sales Tax', module: SalesTaxModule },
+      voicemail: { title: 'Voicemail', module: VoicemailModule },
     };
 
     const page = modules[route] || modules.dashboard;

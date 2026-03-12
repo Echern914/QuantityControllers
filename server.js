@@ -61,6 +61,7 @@ app.use('/api/reorder', require('./routes/reorder'));
 app.use('/api/clover', require('./routes/clover'));
 app.use('/api/drink-deduction', require('./routes/drink-deduction'));
 app.use('/api/sales-tax', require('./routes/sales-tax'));
+app.use('/api/voicemail', require('./routes/voicemail'));
 
 // SSE endpoint
 app.get('/api/events', (req, res) => {

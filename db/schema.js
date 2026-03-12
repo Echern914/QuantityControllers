@@ -1716,6 +1716,57 @@ function initializeSchema() {
     -- Anomaly log
     CREATE INDEX IF NOT EXISTS idx_anomaly_severity ON anomaly_log(severity);
     CREATE INDEX IF NOT EXISTS idx_anomaly_detected ON anomaly_log(detected_at);
+
+    -- ============================================================
+    -- VOICEMAIL & PHONE SYSTEM
+    -- ============================================================
+    CREATE TABLE IF NOT EXISTS voicemail_lines (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      phone_number TEXT,
+      twilio_sid TEXT,
+      mode TEXT DEFAULT 'traditional' CHECK(mode IN ('traditional', 'ai')),
+      greeting_text TEXT DEFAULT '',
+      restaurant_name TEXT DEFAULT '',
+      callback_hours INTEGER DEFAULT 2,
+      max_recording_seconds INTEGER DEFAULT 120,
+      ai_personality TEXT DEFAULT '',
+      active INTEGER DEFAULT 1,
+      created_by INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (created_by) REFERENCES employees(id) ON DELETE SET NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS voicemail_messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      line_id INTEGER,
+      call_sid TEXT,
+      caller_phone TEXT,
+      caller_name TEXT,
+      reason TEXT,
+      urgency TEXT DEFAULT 'medium' CHECK(urgency IN ('low', 'medium', 'high')),
+      recording_url TEXT,
+      transcription TEXT,
+      ai_summary TEXT,
+      duration_seconds INTEGER DEFAULT 0,
+      status TEXT DEFAULT 'new' CHECK(status IN ('new', 'in_progress', 'read', 'archived', 'callback_pending')),
+      notes TEXT,
+      assigned_to INTEGER,
+      callback_completed INTEGER DEFAULT 0,
+      callback_at DATETIME,
+      callback_by INTEGER,
+      read_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (line_id) REFERENCES voicemail_lines(id) ON DELETE CASCADE,
+      FOREIGN KEY (assigned_to) REFERENCES employees(id) ON DELETE SET NULL,
+      FOREIGN KEY (callback_by) REFERENCES employees(id) ON DELETE SET NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_voicemail_messages_line ON voicemail_messages(line_id);
+    CREATE INDEX IF NOT EXISTS idx_voicemail_messages_status ON voicemail_messages(status);
+    CREATE INDEX IF NOT EXISTS idx_voicemail_messages_created ON voicemail_messages(created_at);
   `);
 
   // Insert default settings
