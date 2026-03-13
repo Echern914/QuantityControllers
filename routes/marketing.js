@@ -42,7 +42,7 @@ router.post('/campaigns', (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(name, campaign_type || 'email', target_audience || 'all', JSON.stringify(audience_filter || {}), subject || '', content || '', template || null, send_date || null, budget || 0, created_by || null);
 
-  res.json({ id: result.lastInsertRowid, message: 'Campaign created' });
+  res.json({ success: true, id: result.lastInsertRowid, message: 'Campaign created' });
 });
 
 // PUT /api/marketing/campaigns/:id
@@ -60,7 +60,7 @@ router.put('/campaigns/:id', (req, res) => {
   updates.push("updated_at = datetime('now')");
   values.push(req.params.id);
   db.prepare(`UPDATE marketing_campaigns SET ${updates.join(', ')} WHERE id = ?`).run(...values);
-  res.json({ message: 'Campaign updated' });
+  res.json({ success: true, message: 'Campaign updated' });
 });
 
 // POST /api/marketing/campaigns/:id/send
@@ -126,7 +126,7 @@ router.post('/promotions', (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(name, promoCode, promotion_type || 'discount', discount_type || 'percent', discount_value || 0, min_order_amount || 0, max_discount || null, JSON.stringify(applicable_items || []), JSON.stringify(applicable_categories || []), start_date || null, end_date || null, start_time || null, end_time || null, JSON.stringify(days_of_week || []), max_uses || null, max_uses_per_customer || null, stackable ? 1 : 0, campaign_id || null);
 
-  res.json({ id: result.lastInsertRowid, code: promoCode, message: 'Promotion created' });
+  res.json({ success: true, id: result.lastInsertRowid, code: promoCode, message: 'Promotion created' });
 });
 
 // POST /api/marketing/promotions/validate
@@ -177,7 +177,7 @@ router.post('/promotions/:id/apply', (req, res) => {
   db.prepare('INSERT INTO promotion_uses (promotion_id, order_id, customer_id, discount_amount) VALUES (?, ?, ?, ?)')
     .run(req.params.id, order_id, customer_id || null, discount_amount || 0);
   db.prepare('UPDATE promotions SET uses_count = uses_count + 1 WHERE id = ?').run(req.params.id);
-  res.json({ message: 'Promotion applied' });
+  res.json({ success: true, message: 'Promotion applied' });
 });
 
 // ============================================================
@@ -200,7 +200,7 @@ router.post('/email-lists', (req, res) => {
   const { name, description, segment_rules } = req.body;
   if (!name) return res.status(400).json({ error: 'List name required' });
   const result = db.prepare('INSERT INTO email_lists (name, description, segment_rules) VALUES (?, ?, ?)').run(name, description || '', JSON.stringify(segment_rules || {}));
-  res.json({ id: result.lastInsertRowid, message: 'Email list created' });
+  res.json({ success: true, id: result.lastInsertRowid, message: 'Email list created' });
 });
 
 // POST /api/marketing/email-lists/:id/subscribe
@@ -211,9 +211,9 @@ router.post('/email-lists/:id/subscribe', (req, res) => {
 
   try {
     db.prepare('INSERT INTO email_subscribers (list_id, customer_id, email, first_name) VALUES (?, ?, ?, ?)').run(req.params.id, customer_id || null, email, first_name || null);
-    res.json({ message: 'Subscribed' });
+    res.json({ success: true, message: 'Subscribed' });
   } catch (err) {
-    res.json({ message: 'Already subscribed' });
+    res.json({ success: true, message: 'Already subscribed' });
   }
 });
 

@@ -64,7 +64,7 @@ router.post('/courses', (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(title, description || '', category || 'general', difficulty || 'beginner', estimated_minutes || 30, passing_score || 80, JSON.stringify(required_for_roles || []), is_onboarding ? 1 : 0, created_by || null);
 
-  res.json({ id: result.lastInsertRowid, message: 'Course created' });
+  res.json({ success: true, id: result.lastInsertRowid, message: 'Course created' });
 });
 
 // PUT /api/training/courses/:id
@@ -73,7 +73,7 @@ router.put('/courses/:id', (req, res) => {
   const { title, description, category, difficulty, estimated_minutes, passing_score, required_for_roles, is_onboarding, active } = req.body;
   db.prepare(`UPDATE training_courses SET title = COALESCE(?, title), description = COALESCE(?, description), category = COALESCE(?, category), difficulty = COALESCE(?, difficulty), estimated_minutes = COALESCE(?, estimated_minutes), passing_score = COALESCE(?, passing_score), required_for_roles = COALESCE(?, required_for_roles), is_onboarding = COALESCE(?, is_onboarding), active = COALESCE(?, active) WHERE id = ?`)
     .run(title, description, category, difficulty, estimated_minutes, passing_score, required_for_roles ? JSON.stringify(required_for_roles) : null, is_onboarding !== undefined ? (is_onboarding ? 1 : 0) : null, active !== undefined ? (active ? 1 : 0) : null, req.params.id);
-  res.json({ message: 'Course updated' });
+  res.json({ success: true, message: 'Course updated' });
 });
 
 // ============================================================
@@ -92,7 +92,7 @@ router.post('/courses/:courseId/lessons', (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `).run(req.params.courseId, title, content || '', content_type || 'text', media_url || null, maxOrder + 1, duration_minutes || 10);
 
-  res.json({ id: result.lastInsertRowid, message: 'Lesson created' });
+  res.json({ success: true, id: result.lastInsertRowid, message: 'Lesson created' });
 });
 
 // PUT /api/training/lessons/:id
@@ -101,7 +101,7 @@ router.put('/lessons/:id', (req, res) => {
   const { title, content, content_type, media_url, duration_minutes, display_order } = req.body;
   db.prepare(`UPDATE training_lessons SET title = COALESCE(?, title), content = COALESCE(?, content), content_type = COALESCE(?, content_type), media_url = COALESCE(?, media_url), duration_minutes = COALESCE(?, duration_minutes), display_order = COALESCE(?, display_order) WHERE id = ?`)
     .run(title, content, content_type, media_url, duration_minutes, display_order, req.params.id);
-  res.json({ message: 'Lesson updated' });
+  res.json({ success: true, message: 'Lesson updated' });
 });
 
 // ============================================================
@@ -130,7 +130,7 @@ router.post('/lessons/:lessonId/quiz', (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `).run(req.params.lessonId, question, question_type || 'multiple_choice', JSON.stringify(options || []), correct_answer, explanation || null, points || 10, maxOrder + 1);
 
-  res.json({ id: result.lastInsertRowid, message: 'Quiz question added' });
+  res.json({ success: true, id: result.lastInsertRowid, message: 'Quiz question added' });
 });
 
 // ============================================================
@@ -164,7 +164,7 @@ router.post('/enroll', (req, res) => {
 
   const result = db.prepare(`INSERT INTO training_enrollments (employee_id, course_id, due_date, assigned_by) VALUES (?, ?, ?, ?)`)
     .run(employee_id, course_id, due_date || null, assigned_by || null);
-  res.json({ id: result.lastInsertRowid, message: 'Employee enrolled' });
+  res.json({ success: true, id: result.lastInsertRowid, message: 'Employee enrolled' });
 });
 
 // POST /api/training/enroll/bulk - Enroll multiple employees

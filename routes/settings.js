@@ -46,7 +46,7 @@ router.post('/registers/open', (req, res) => {
 
   const result = db.prepare(`INSERT INTO register_sessions (register_name, employee_id, opening_cash) VALUES (?, ?, ?)`)
     .run(register_name || 'Main', employee_id, opening_cash || 0);
-  res.json({ id: result.lastInsertRowid });
+  res.json({ success: true, id: result.lastInsertRowid });
 });
 
 // POST /api/settings/registers/close

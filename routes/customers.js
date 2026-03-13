@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { getDb } = require('../db/database');
 const { authenticate } = require('../middleware/auth');
+const { paginate } = require('../middleware/response');
 
 // All routes require authentication
 router.use(authenticate);
@@ -22,9 +23,9 @@ router.get('/', (req, res) => {
     }
     if (vip_tier) { conditions.push('vip_tier = ?'); params.push(vip_tier); }
     if (conditions.length) sql += ' WHERE ' + conditions.join(' AND ');
-    sql += ' ORDER BY last_visit_at DESC NULLS LAST LIMIT 200';
+    sql += ' ORDER BY last_visit_at DESC NULLS LAST';
 
-    res.json(db.prepare(sql).all(...params));
+    res.json(paginate(db, sql, params, req.query, { defaultLimit: 200 }));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -77,11 +78,13 @@ router.get('/:id', (req, res) => {
 router.post('/', (req, res) => {
   try {
     const { first_name, last_name, email, phone, birthday, notes } = req.body;
+    if (!first_name) return res.status(400).json({ error: 'first_name is required' });
     const db = getDb();
     const result = db.prepare(`INSERT INTO customers (first_name, last_name, email, phone, birthday, notes) VALUES (?, ?, ?, ?, ?, ?)`)
-      .run(first_name, last_name, email, phone, birthday, notes);
-    res.json({ id: result.lastInsertRowid });
+      .run(first_name, last_name, email || null, phone || null, birthday || null, notes || null);
+    res.json({ success: true, id: result.lastInsertRowid });
   } catch (err) {
+    if (err.message?.includes('UNIQUE constraint')) return res.status(409).json({ error: 'A customer with this email already exists' });
     res.status(500).json({ error: err.message });
   }
 });
@@ -102,7 +105,8 @@ router.put('/:id', (req, res) => {
 // POST /api/customers/:id/loyalty/add
 router.post('/:id/loyalty/add', (req, res) => {
   try {
-    const { points } = req.body;
+    const points = parseInt(req.body.points);
+    if (!Number.isFinite(points) || points <= 0) return res.status(400).json({ error: 'points must be a positive integer' });
     const db = getDb();
     db.prepare(`UPDATE customers SET loyalty_points = loyalty_points + ? WHERE id = ?`).run(points, req.params.id);
     const customer = db.prepare(`SELECT loyalty_points, vip_tier FROM customers WHERE id = ?`).get(req.params.id);
@@ -125,7 +129,8 @@ router.post('/:id/loyalty/add', (req, res) => {
 // POST /api/customers/:id/loyalty/redeem
 router.post('/:id/loyalty/redeem', (req, res) => {
   try {
-    const { points } = req.body;
+    const points = parseInt(req.body.points);
+    if (!Number.isFinite(points) || points <= 0) return res.status(400).json({ error: 'points must be a positive integer' });
     const db = getDb();
     const customer = db.prepare(`SELECT loyalty_points FROM customers WHERE id = ?`).get(req.params.id);
     if (!customer) return res.status(404).json({ error: 'Customer not found' });

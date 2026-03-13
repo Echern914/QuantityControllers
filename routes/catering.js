@@ -61,7 +61,7 @@ router.post('/events', (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(event_name, event_type || 'private_party', customer_id || null, contact_name, contact_phone || null, contact_email || null, event_date, start_time, end_time, guest_count || 20, location || null, venue_type || 'on_premise', deposit_amount || 0, staff_needed || 0, setup_time || null, cleanup_time || null, special_requirements || null, dietary_notes || null, notes || null, created_by || null);
 
-  res.json({ id: result.lastInsertRowid, message: 'Event created' });
+  res.json({ success: true, id: result.lastInsertRowid, message: 'Event created' });
 });
 
 // PUT /api/catering/events/:id
@@ -78,7 +78,7 @@ router.put('/events/:id', (req, res) => {
   updates.push("updated_at = datetime('now')");
   values.push(req.params.id);
   db.prepare(`UPDATE catering_events SET ${updates.join(', ')} WHERE id = ?`).run(...values);
-  res.json({ message: 'Event updated' });
+  res.json({ success: true, message: 'Event updated' });
 });
 
 // POST /api/catering/events/:id/items
@@ -127,7 +127,7 @@ router.post('/events/:id/staff', (req, res) => {
 router.post('/events/:id/confirm-staff/:staffId', (req, res) => {
   const db = getDb();
   db.prepare('UPDATE catering_event_staff SET confirmed = 1 WHERE id = ?').run(req.params.staffId);
-  res.json({ message: 'Staff confirmed' });
+  res.json({ success: true, message: 'Staff confirmed' });
 });
 
 // ============================================================
@@ -152,7 +152,7 @@ router.post('/packages', (req, res) => {
 
   const result = db.prepare(`INSERT INTO catering_packages (name, description, price_per_person, min_guests, max_guests, includes, category) VALUES (?, ?, ?, ?, ?, ?, ?)`)
     .run(name, description || '', price_per_person || 0, min_guests || 10, max_guests || null, JSON.stringify(includes || []), category || 'standard');
-  res.json({ id: result.lastInsertRowid, message: 'Package created' });
+  res.json({ success: true, id: result.lastInsertRowid, message: 'Package created' });
 });
 
 // ============================================================

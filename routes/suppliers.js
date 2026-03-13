@@ -22,7 +22,7 @@ router.post('/', (req, res) => {
     const db = getDb();
     const result = db.prepare(`INSERT INTO suppliers (name, contact_name, email, phone, address, payment_terms, notes) VALUES (?, ?, ?, ?, ?, ?, ?)`)
       .run(name, contact_name, email, phone, address, payment_terms || 'Net 30', notes);
-    res.json({ id: result.lastInsertRowid });
+    res.json({ success: true, id: result.lastInsertRowid });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -90,7 +90,7 @@ router.post('/purchase-orders', (req, res) => {
       insertItem.run(poId, item.ingredient_id, item.quantity_ordered, item.unit_cost, item.quantity_ordered * item.unit_cost);
     }
 
-    res.json({ id: poId, order_number: orderNumber, total_cost: totalCost });
+    res.json({ success: true, id: poId, order_number: orderNumber, total_cost: totalCost });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

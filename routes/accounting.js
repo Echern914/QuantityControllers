@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { getDb } = require('../db/database');
 const { authenticate, requireRole } = require('../middleware/auth');
+const { paginate } = require('../middleware/response');
 
 // All routes require authentication
 router.use(authenticate);
@@ -34,7 +35,7 @@ router.post('/accounts', (req, res) => {
     INSERT INTO chart_of_accounts (account_number, name, account_type, sub_type, parent_id, normal_balance, description)
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `).run(account_number, name, account_type, sub_type || null, parent_id || null, normal_balance || 'debit', description || null);
-  res.json({ id: result.lastInsertRowid, message: 'Account created' });
+  res.json({ success: true, id: result.lastInsertRowid, message: 'Account created' });
 });
 
 // PUT /api/accounting/accounts/:id
@@ -47,7 +48,7 @@ router.put('/accounts/:id', (req, res) => {
 
   db.prepare(`UPDATE chart_of_accounts SET name = COALESCE(?, name), sub_type = COALESCE(?, sub_type), description = COALESCE(?, description), active = COALESCE(?, active) WHERE id = ?`)
     .run(name, sub_type, description, active !== undefined ? (active ? 1 : 0) : null, req.params.id);
-  res.json({ message: 'Account updated' });
+  res.json({ success: true, message: 'Account updated' });
 });
 
 // GET /api/accounting/trial-balance
@@ -83,7 +84,7 @@ router.get('/trial-balance', (req, res) => {
 // GET /api/accounting/journal-entries
 router.get('/journal-entries', (req, res) => {
   const db = getDb();
-  const { status, source, start_date, end_date, limit: lim } = req.query;
+  const { status, source, start_date, end_date } = req.query;
   let sql = `SELECT je.*, e.first_name || ' ' || COALESCE(e.last_name, '') as created_by_name
     FROM journal_entries je LEFT JOIN employees e ON je.created_by = e.id WHERE 1=1`;
   const params = [];
@@ -92,15 +93,19 @@ router.get('/journal-entries', (req, res) => {
   if (start_date) { sql += ' AND je.entry_date >= ?'; params.push(start_date); }
   if (end_date) { sql += ' AND je.entry_date <= ?'; params.push(end_date); }
   sql += ' ORDER BY je.entry_date DESC, je.id DESC';
-  if (lim) { sql += ' LIMIT ?'; params.push(parseInt(lim)); }
-  const entries = db.prepare(sql).all(...params);
+  const result = paginate(db, sql, params, req.query, { defaultLimit: 200 });
+  const entries = Array.isArray(result) ? result : result.data;
 
   // Fetch lines for each entry
   const getLines = db.prepare(`SELECT jel.*, coa.account_number, coa.name as account_name FROM journal_entry_lines jel JOIN chart_of_accounts coa ON jel.account_id = coa.id WHERE jel.journal_entry_id = ?`);
   for (const entry of entries) {
     entry.lines = getLines.all(entry.id);
   }
-  res.json(entries);
+  if (Array.isArray(result)) {
+    res.json(entries);
+  } else {
+    res.json({ data: entries, pagination: result.pagination });
+  }
 });
 
 // POST /api/accounting/journal-entries
@@ -132,7 +137,7 @@ router.post('/journal-entries', (req, res) => {
     insertLine.run(result.lastInsertRowid, line.account_id, line.description || '', line.debit || 0, line.credit || 0);
   }
 
-  res.json({ id: result.lastInsertRowid, entry_number: entryNumber, message: 'Journal entry created' });
+  res.json({ success: true, id: result.lastInsertRowid, entry_number: entryNumber, message: 'Journal entry created' });
 });
 
 // POST /api/accounting/journal-entries/:id/post
@@ -144,7 +149,7 @@ router.post('/journal-entries/:id/post', (req, res) => {
 
   db.prepare(`UPDATE journal_entries SET status = 'posted', posted_at = datetime('now'), posted_by = ? WHERE id = ?`)
     .run(req.body.posted_by || null, req.params.id);
-  res.json({ message: 'Journal entry posted' });
+  res.json({ success: true, message: 'Journal entry posted' });
 });
 
 // POST /api/accounting/journal-entries/:id/reverse
@@ -169,7 +174,7 @@ router.post('/journal-entries/:id/reverse', (req, res) => {
   }
 
   db.prepare('UPDATE journal_entries SET reversed = 1 WHERE id = ?').run(req.params.id);
-  res.json({ id: result.lastInsertRowid, entry_number: entryNumber, message: 'Entry reversed' });
+  res.json({ success: true, id: result.lastInsertRowid, entry_number: entryNumber, message: 'Entry reversed' });
 });
 
 // ============================================================
@@ -324,14 +329,14 @@ router.post('/fiscal-periods', (req, res) => {
   const { name, period_type, start_date, end_date } = req.body;
   if (!name || !start_date || !end_date) return res.status(400).json({ error: 'Name, start, and end date required' });
   const result = db.prepare(`INSERT INTO fiscal_periods (name, period_type, start_date, end_date) VALUES (?, ?, ?, ?)`).run(name, period_type || 'monthly', start_date, end_date);
-  res.json({ id: result.lastInsertRowid, message: 'Fiscal period created' });
+  res.json({ success: true, id: result.lastInsertRowid, message: 'Fiscal period created' });
 });
 
 // POST /api/accounting/fiscal-periods/:id/close
 router.post('/fiscal-periods/:id/close', (req, res) => {
   const db = getDb();
   db.prepare(`UPDATE fiscal_periods SET status = 'closed', closed_by = ?, closed_at = datetime('now') WHERE id = ?`).run(req.body.closed_by || null, req.params.id);
-  res.json({ message: 'Period closed' });
+  res.json({ success: true, message: 'Period closed' });
 });
 
 // ============================================================
@@ -356,7 +361,7 @@ router.post('/budgets', (req, res) => {
   const db = getDb();
   const { name, fiscal_period_id, account_id, budget_type, amount } = req.body;
   const result = db.prepare(`INSERT INTO budgets (name, fiscal_period_id, account_id, budget_type, amount) VALUES (?, ?, ?, ?, ?)`).run(name, fiscal_period_id || null, account_id, budget_type || 'fixed', amount || 0);
-  res.json({ id: result.lastInsertRowid, message: 'Budget created' });
+  res.json({ success: true, id: result.lastInsertRowid, message: 'Budget created' });
 });
 
 // GET /api/accounting/budget-vs-actual
@@ -398,7 +403,7 @@ router.post('/auto-journal/daily-sales', (req, res) => {
     FROM orders WHERE status = 'closed' AND date(opened_at) = ?
   `).get(date);
 
-  if (sales.total === 0) return res.json({ message: 'No sales to journal' });
+  if (sales.total === 0) return res.json({ success: true, message: 'No sales to journal' });
 
   const payments = db.prepare(`
     SELECT payment_method, SUM(amount) as total
@@ -434,7 +439,7 @@ router.post('/auto-journal/daily-sales', (req, res) => {
   if (taxPayable && sales.tax > 0) insertLine.run(result.lastInsertRowid, taxPayable.id, 'Sales tax collected', 0, sales.tax);
   if (tipsPayable && sales.tips > 0) insertLine.run(result.lastInsertRowid, tipsPayable.id, 'Tips collected', 0, sales.tips);
 
-  res.json({ id: result.lastInsertRowid, entry_number: entryNumber, message: 'Daily sales journal entry created' });
+  res.json({ success: true, id: result.lastInsertRowid, entry_number: entryNumber, message: 'Daily sales journal entry created' });
 });
 
 module.exports = router;

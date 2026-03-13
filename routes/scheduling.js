@@ -31,7 +31,7 @@ router.post('/shifts', (req, res) => {
     const db = getDb();
     const result = db.prepare(`INSERT INTO shifts (employee_id, shift_date, start_time, end_time, station, notes) VALUES (?, ?, ?, ?, ?, ?)`)
       .run(employee_id, shift_date, start_time, end_time, station, notes);
-    res.json({ id: result.lastInsertRowid });
+    res.json({ success: true, id: result.lastInsertRowid });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

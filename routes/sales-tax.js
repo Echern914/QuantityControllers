@@ -46,38 +46,42 @@ router.post('/config', (req, res) => {
   const state = db.prepare(`SELECT * FROM state_tax_profiles WHERE state_code = ?`).get(state_code.toUpperCase());
   if (!state) return res.status(404).json({ error: 'State not found' });
 
-  // Deactivate existing configs
-  db.prepare(`UPDATE sales_tax_config SET active = 0`).run();
+  // Atomic: deactivate old + insert new config + rules in one transaction
+  const configId = db.transaction(() => {
+    db.prepare(`UPDATE sales_tax_config SET active = 0`).run();
 
-  const result = db.prepare(`
-    INSERT INTO sales_tax_config (state_code, state_name, state_rate, county_name, county_rate, city_name, city_rate, special_district_rate, food_taxed, food_rate_override, alcohol_rate_override, has_reduced_food_rate, filing_frequency)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
-    state.state_code, state.state_name, state.base_sales_tax_rate,
-    county_name || null, county_rate || 0,
-    city_name || null, city_rate || 0,
-    special_district_rate || 0,
-    state.prepared_food_taxed,
-    state.food_reduced_rate,
-    state.alcohol_extra_rate > 0 ? state.base_sales_tax_rate + state.alcohol_extra_rate : null,
-    state.food_reduced_rate ? 1 : 0,
-    JSON.parse(state.filing_frequencies)[0]
-  );
+    const result = db.prepare(`
+      INSERT INTO sales_tax_config (state_code, state_name, state_rate, county_name, county_rate, city_name, city_rate, special_district_rate, food_taxed, food_rate_override, alcohol_rate_override, has_reduced_food_rate, filing_frequency)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      state.state_code, state.state_name, state.base_sales_tax_rate,
+      county_name || null, county_rate || 0,
+      city_name || null, city_rate || 0,
+      special_district_rate || 0,
+      state.prepared_food_taxed,
+      state.food_reduced_rate,
+      state.alcohol_extra_rate > 0 ? state.base_sales_tax_rate + state.alcohol_extra_rate : null,
+      state.food_reduced_rate ? 1 : 0,
+      JSON.parse(state.filing_frequencies)[0]
+    );
 
-  // Auto-create default rules based on state profile
-  const configId = result.lastInsertRowid;
-  const insertRule = db.prepare(`INSERT INTO sales_tax_rules (config_id, rule_type, description, category, exempt, special_rate, notes) VALUES (?, ?, ?, ?, ?, ?, ?)`);
+    const cId = result.lastInsertRowid;
+    const insertRule = db.prepare(`INSERT INTO sales_tax_rules (config_id, rule_type, description, category, exempt, special_rate, notes) VALUES (?, ?, ?, ?, ?, ?, ?)`);
 
-  if (!state.grocery_taxed) {
-    insertRule.run(configId, 'exemption', 'Unprepared grocery items exempt from state tax', 'grocery', 1, null, `${state.state_name} exempts grocery items from sales tax`);
-  }
-  if (state.food_reduced_rate) {
-    insertRule.run(configId, 'reduced_rate', `Grocery/unprepared food at reduced rate of ${(state.food_reduced_rate * 100).toFixed(2)}%`, 'grocery', 0, state.food_reduced_rate, 'Reduced rate applies to unprepared food items');
-  }
-  if (state.alcohol_extra_rate > 0) {
-    insertRule.run(configId, 'surcharge', `Alcohol taxed at additional ${(state.alcohol_extra_rate * 100).toFixed(1)}%`, 'alcohol', 0, state.base_sales_tax_rate + state.alcohol_extra_rate, `Total alcohol rate: ${((state.base_sales_tax_rate + state.alcohol_extra_rate) * 100).toFixed(1)}%`);
-  }
-  insertRule.run(configId, 'standard', 'Prepared food/meals taxed at combined rate', 'prepared_food', 0, null, 'Standard rate applies to all restaurant meals');
+    if (!state.grocery_taxed) {
+      insertRule.run(cId, 'exemption', 'Unprepared grocery items exempt from state tax', 'grocery', 1, null, `${state.state_name} exempts grocery items from sales tax`);
+    }
+    if (state.food_reduced_rate) {
+      insertRule.run(cId, 'reduced_rate', `Grocery/unprepared food at reduced rate of ${(state.food_reduced_rate * 100).toFixed(2)}%`, 'grocery', 0, state.food_reduced_rate, 'Reduced rate applies to unprepared food items');
+    }
+    if (state.alcohol_extra_rate > 0) {
+      insertRule.run(cId, 'surcharge', `Alcohol taxed at additional ${(state.alcohol_extra_rate * 100).toFixed(1)}%`, 'alcohol', 0, state.base_sales_tax_rate + state.alcohol_extra_rate, `Total alcohol rate: ${((state.base_sales_tax_rate + state.alcohol_extra_rate) * 100).toFixed(1)}%`);
+    }
+
+    insertRule.run(cId, 'standard', 'Prepared food/meals taxed at combined rate', 'prepared_food', 0, null, 'Standard rate applies to all restaurant meals');
+
+    return cId;
+  })();
 
   // Update the settings tax_rate to match
   const combined = state.base_sales_tax_rate + (county_rate || 0) + (city_rate || 0) + (special_district_rate || 0);

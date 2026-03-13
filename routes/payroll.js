@@ -123,7 +123,7 @@ router.post('/runs', (req, res) => {
       total_net = ?, total_tips = ?, employee_count = ? WHERE id = ?
   `).run(+totalGross.toFixed(2), +totalDeductions.toFixed(2), totalEmployerTaxes, +totalNet.toFixed(2), +totalTips.toFixed(2), employees.length, runId);
 
-  res.json({ id: runId, employee_count: employees.length, total_gross: +totalGross.toFixed(2), total_net: +totalNet.toFixed(2), message: 'Payroll calculated' });
+  res.json({ success: true, id: runId, employee_count: employees.length, total_gross: +totalGross.toFixed(2), total_net: +totalNet.toFixed(2), message: 'Payroll calculated' });
 });
 
 // POST /api/payroll/runs/:id/approve
@@ -131,7 +131,7 @@ router.post('/runs/:id/approve', (req, res) => {
   const db = getDb();
   db.prepare(`UPDATE payroll_runs SET status = 'approved', approved_by = ?, approved_at = datetime('now') WHERE id = ?`)
     .run(req.body.approved_by || null, req.params.id);
-  res.json({ message: 'Payroll approved' });
+  res.json({ success: true, message: 'Payroll approved' });
 });
 
 // POST /api/payroll/runs/:id/process
@@ -143,7 +143,7 @@ router.post('/runs/:id/process', (req, res) => {
 
   db.prepare(`UPDATE payroll_runs SET status = 'processed', processed_by = ?, processed_at = datetime('now') WHERE id = ?`)
     .run(req.body.processed_by || null, req.params.id);
-  res.json({ message: 'Payroll processed' });
+  res.json({ success: true, message: 'Payroll processed' });
 });
 
 // ============================================================
@@ -169,7 +169,7 @@ router.post('/tip-pools', (req, res) => {
     FROM orders WHERE status = 'closed' AND date(opened_at) = ?
   `).get(date);
 
-  if (tipData.total_tips === 0) return res.json({ message: 'No tips to pool' });
+  if (tipData.total_tips === 0) return res.json({ success: true, message: 'No tips to pool' });
 
   // Get staff who worked that day with hours
   const workers = db.prepare(`
@@ -181,7 +181,7 @@ router.post('/tip-pools', (req, res) => {
     GROUP BY e.id
   `).all(date);
 
-  if (workers.length === 0) return res.json({ message: 'No staff worked this day' });
+  if (workers.length === 0) return res.json({ success: true, message: 'No staff worked this day' });
 
   const totalHours = workers.reduce((s, w) => s + (w.hours || 0), 0);
   const ratePerHour = totalHours > 0 ? tipData.total_tips / totalHours : 0;
@@ -197,7 +197,7 @@ router.post('/tip-pools', (req, res) => {
     distributions.push({ employee: `${w.first_name} ${w.last_name}`, hours: w.hours, share });
   }
 
-  res.json({ id: result.lastInsertRowid, total_tips: tipData.total_tips, distributions, message: 'Tips pooled and distributed' });
+  res.json({ success: true, id: result.lastInsertRowid, total_tips: tipData.total_tips, distributions, message: 'Tips pooled and distributed' });
 });
 
 // GET /api/payroll/tip-pools/:id
@@ -233,7 +233,7 @@ router.put('/tax-rates/:id', (req, res) => {
   const { rate, bracket_min, bracket_max, employer_match } = req.body;
   db.prepare(`UPDATE tax_rates SET rate = COALESCE(?, rate), bracket_min = COALESCE(?, bracket_min), bracket_max = COALESCE(?, bracket_max), employer_match = COALESCE(?, employer_match) WHERE id = ?`)
     .run(rate, bracket_min, bracket_max, employer_match, req.params.id);
-  res.json({ message: 'Tax rate updated' });
+  res.json({ success: true, message: 'Tax rate updated' });
 });
 
 // ============================================================

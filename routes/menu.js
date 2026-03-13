@@ -23,7 +23,7 @@ router.post('/categories', (req, res) => {
     const { name, color, icon } = req.body;
     const db = getDb();
     const result = db.prepare(`INSERT INTO menu_categories (name, color, icon) VALUES (?, ?, ?)`).run(name, color || '#6366f1', icon || 'utensils');
-    res.json({ id: result.lastInsertRowid, name, color, icon });
+    res.json({ success: true, id: result.lastInsertRowid, name, color, icon });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -73,10 +73,19 @@ router.get('/items', (req, res) => {
 
     const items = db.prepare(sql).all(...params);
 
-    // Attach recipes
-    const recipeStmt = db.prepare(`SELECT r.*, i.name as ingredient_name FROM recipes r JOIN ingredients i ON r.ingredient_id = i.id WHERE r.menu_item_id = ?`);
-    for (const item of items) {
-      item.recipes = recipeStmt.all(item.id);
+    // Batch-load all recipes in one query instead of N+1
+    if (items.length > 0) {
+      const itemIds = items.map(i => i.id);
+      const placeholders = itemIds.map(() => '?').join(',');
+      const allRecipes = db.prepare(`SELECT r.*, i.name as ingredient_name FROM recipes r JOIN ingredients i ON r.ingredient_id = i.id WHERE r.menu_item_id IN (${placeholders})`).all(...itemIds);
+      const recipeMap = {};
+      for (const r of allRecipes) {
+        if (!recipeMap[r.menu_item_id]) recipeMap[r.menu_item_id] = [];
+        recipeMap[r.menu_item_id].push(r);
+      }
+      for (const item of items) {
+        item.recipes = recipeMap[item.id] || [];
+      }
     }
 
     res.json(items);
@@ -105,7 +114,7 @@ router.post('/items', (req, res) => {
       }
     }
 
-    res.json({ id: menuItemId, name, price });
+    res.json({ success: true, id: menuItemId, name, price });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -178,7 +187,7 @@ router.post('/modifiers', (req, res) => {
     const { name, category, price_adjustment } = req.body;
     const db = getDb();
     const result = db.prepare(`INSERT INTO menu_modifiers (name, category, price_adjustment) VALUES (?, ?, ?)`).run(name, category, price_adjustment || 0);
-    res.json({ id: result.lastInsertRowid });
+    res.json({ success: true, id: result.lastInsertRowid });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -231,7 +240,7 @@ router.post('/pricing-rules', (req, res) => {
       INSERT INTO pricing_rules (name, type, menu_item_id, category_id, discount_type, discount_value, start_time, end_time, start_date, end_date, days_of_week)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(name, type, menu_item_id, category_id, discount_type, discount_value, start_time, end_time, start_date, end_date, JSON.stringify(days_of_week || []));
-    res.json({ id: result.lastInsertRowid });
+    res.json({ success: true, id: result.lastInsertRowid });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { getDb } = require('../db/database');
 const { authenticate } = require('../middleware/auth');
+const { paginate } = require('../middleware/response');
 const { logWaste } = require('../services/deduction');
 
 // All routes require authentication
@@ -26,7 +27,7 @@ router.get('/', (req, res) => {
   if (conditions.length) sql += ' WHERE ' + conditions.join(' AND ');
   sql += ' ORDER BY i.name, inv.location';
 
-  res.json(db.prepare(sql).all(...params));
+  res.json(paginate(db, sql, params, req.query));
 });
 
 // GET /api/inventory/summary - aggregated by ingredient
@@ -82,7 +83,7 @@ router.post('/', (req, res) => {
     INSERT INTO inventory (ingredient_id, quantity, full_quantity, location, status, expiration_date, lot_number, purchase_order_id)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `).run(ingredient_id, quantity, full_quantity || quantity, location || 'storage', status || 'sealed', expiration_date, lot_number, purchase_order_id);
-  res.json({ id: result.lastInsertRowid });
+  res.json({ success: true, id: result.lastInsertRowid });
 });
 
 // PATCH /api/inventory/:id
@@ -122,7 +123,7 @@ router.post('/ingredients', (req, res) => {
   const db = getDb();
   const result = db.prepare(`INSERT INTO ingredients (name, category_id, unit, cost_per_unit, supplier_id, par_level, reorder_quantity, shelf_life_days) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
     .run(name, category_id, unit || 'oz', cost_per_unit || 0, supplier_id, par_level || 0, reorder_quantity || 0, shelf_life_days);
-  res.json({ id: result.lastInsertRowid });
+  res.json({ success: true, id: result.lastInsertRowid });
 });
 
 // GET /api/inventory/categories
@@ -136,7 +137,7 @@ router.post('/categories', (req, res) => {
   const { name, color, icon } = req.body;
   const db = getDb();
   const result = db.prepare(`INSERT INTO categories (name, color, icon) VALUES (?, ?, ?)`).run(name, color, icon);
-  res.json({ id: result.lastInsertRowid });
+  res.json({ success: true, id: result.lastInsertRowid });
 });
 
 // POST /api/inventory/waste
@@ -159,8 +160,8 @@ router.get('/waste', (req, res) => {
   if (start_date) { conditions.push("date(w.created_at) >= ?"); params.push(start_date); }
   if (end_date) { conditions.push("date(w.created_at) <= ?"); params.push(end_date); }
   if (conditions.length) sql += ' WHERE ' + conditions.join(' AND ');
-  sql += ' ORDER BY w.created_at DESC LIMIT 500';
-  res.json(db.prepare(sql).all(...params));
+  sql += ' ORDER BY w.created_at DESC';
+  res.json(paginate(db, sql, params, req.query, { defaultLimit: 500 }));
 });
 
 // GET /api/inventory/variance - theoretical vs actual usage
@@ -441,7 +442,7 @@ router.post('/count', (req, res) => {
     return countId;
   })();
 
-  res.json({ id: result });
+  res.json({ success: true, id: result });
 });
 
 // ============================================================
@@ -473,7 +474,7 @@ router.post('/transfer', (req, res) => {
     INSERT INTO stock_transfers (ingredient_id, from_location, to_location, quantity, requested_by, notes)
     VALUES (?, ?, ?, ?, ?, ?)
   `).run(ingredient_id, from_location, to_location, quantity, requested_by, notes);
-  res.json({ id: result.lastInsertRowid });
+  res.json({ success: true, id: result.lastInsertRowid });
 });
 
 // PATCH /api/inventory/transfers/:id/approve

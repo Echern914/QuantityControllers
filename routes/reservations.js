@@ -41,7 +41,7 @@ router.post('/', (req, res) => {
       db.prepare(`UPDATE tables SET status = 'reserved' WHERE id = ? AND status = 'open'`).run(table_id);
     }
 
-    res.json({ id: result.lastInsertRowid });
+    res.json({ success: true, id: result.lastInsertRowid });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

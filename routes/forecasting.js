@@ -271,7 +271,7 @@ router.get('/anomalies', (req, res) => {
 router.patch('/anomalies/:id/acknowledge', (req, res) => {
   const db = getDb();
   db.prepare('UPDATE anomaly_log SET acknowledged = 1, acknowledged_by = ? WHERE id = ?').run(req.body.acknowledged_by || null, req.params.id);
-  res.json({ message: 'Anomaly acknowledged' });
+  res.json({ success: true, message: 'Anomaly acknowledged' });
 });
 
 // GET /api/forecasting/dashboard

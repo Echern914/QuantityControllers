@@ -33,7 +33,7 @@ router.post('/accounts', (req, res) => {
     INSERT INTO bank_accounts (name, bank_name, account_number_last4, account_type, gl_account_id, current_balance)
     VALUES (?, ?, ?, ?, ?, ?)
   `).run(name, bank_name || null, account_number_last4 || null, account_type || 'checking', gl_account_id || null, current_balance || 0);
-  res.json({ id: result.lastInsertRowid, message: 'Bank account created' });
+  res.json({ success: true, id: result.lastInsertRowid, message: 'Bank account created' });
 });
 
 // PUT /api/banking/accounts/:id
@@ -42,7 +42,7 @@ router.put('/accounts/:id', (req, res) => {
   const { name, bank_name, gl_account_id, current_balance, active } = req.body;
   db.prepare(`UPDATE bank_accounts SET name = COALESCE(?, name), bank_name = COALESCE(?, bank_name), gl_account_id = COALESCE(?, gl_account_id), current_balance = COALESCE(?, current_balance), active = COALESCE(?, active) WHERE id = ?`)
     .run(name, bank_name, gl_account_id, current_balance, active !== undefined ? (active ? 1 : 0) : null, req.params.id);
-  res.json({ message: 'Bank account updated' });
+  res.json({ success: true, message: 'Bank account updated' });
 });
 
 // ============================================================
@@ -77,7 +77,7 @@ router.post('/accounts/:id/transactions', (req, res) => {
   // Update balance
   db.prepare(`UPDATE bank_accounts SET current_balance = current_balance + ? WHERE id = ?`).run(amount, req.params.id);
 
-  res.json({ id: result.lastInsertRowid, message: 'Transaction recorded' });
+  res.json({ success: true, id: result.lastInsertRowid, message: 'Transaction recorded' });
 });
 
 // POST /api/banking/accounts/:id/import - Bulk import transactions (CSV-style)
@@ -114,14 +114,14 @@ router.post('/transactions/:id/match', (req, res) => {
   const { entity_type, entity_id } = req.body;
   db.prepare(`UPDATE bank_transactions SET matched = 1, matched_entity_type = ?, matched_entity_id = ? WHERE id = ?`)
     .run(entity_type, entity_id, req.params.id);
-  res.json({ message: 'Transaction matched' });
+  res.json({ success: true, message: 'Transaction matched' });
 });
 
 // POST /api/banking/transactions/:id/unmatch
 router.post('/transactions/:id/unmatch', (req, res) => {
   const db = getDb();
   db.prepare(`UPDATE bank_transactions SET matched = 0, matched_entity_type = NULL, matched_entity_id = NULL WHERE id = ?`).run(req.params.id);
-  res.json({ message: 'Transaction unmatched' });
+  res.json({ success: true, message: 'Transaction unmatched' });
 });
 
 // GET /api/banking/auto-match/:accountId - Suggest matches
@@ -200,7 +200,7 @@ router.post('/accounts/:id/reconcile', (req, res) => {
 
   db.prepare(`UPDATE bank_accounts SET last_reconciled_date = ?, last_statement_balance = ? WHERE id = ?`).run(statement_date, statement_balance, req.params.id);
 
-  res.json({ id: result.lastInsertRowid, difference, status: Math.abs(difference) < 0.01 ? 'completed' : 'in_progress', message: 'Reconciliation saved' });
+  res.json({ success: true, id: result.lastInsertRowid, difference, status: Math.abs(difference) < 0.01 ? 'completed' : 'in_progress', message: 'Reconciliation saved' });
 });
 
 // GET /api/banking/accounts/:id/reconciliations

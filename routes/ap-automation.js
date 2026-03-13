@@ -71,7 +71,7 @@ router.post('/invoices', (req, res) => {
     }
   }
 
-  res.json({ id: result.lastInsertRowid, approval_status: approvalStatus, message: 'Invoice created' });
+  res.json({ success: true, id: result.lastInsertRowid, approval_status: approvalStatus, message: 'Invoice created' });
 });
 
 // POST /api/ap/invoices/:id/approve
@@ -79,7 +79,7 @@ router.post('/invoices/:id/approve', (req, res) => {
   const db = getDb();
   db.prepare(`UPDATE ap_invoices SET approval_status = 'approved', approved_by = ?, approved_at = datetime('now'), updated_at = datetime('now') WHERE id = ?`)
     .run(req.body.approved_by || null, req.params.id);
-  res.json({ message: 'Invoice approved' });
+  res.json({ success: true, message: 'Invoice approved' });
 });
 
 // POST /api/ap/invoices/:id/reject
@@ -87,7 +87,7 @@ router.post('/invoices/:id/reject', (req, res) => {
   const db = getDb();
   db.prepare(`UPDATE ap_invoices SET approval_status = 'rejected', notes = COALESCE(notes, '') || ' | Rejected: ' || ?, updated_at = datetime('now') WHERE id = ?`)
     .run(req.body.reason || 'No reason', req.params.id);
-  res.json({ message: 'Invoice rejected' });
+  res.json({ success: true, message: 'Invoice rejected' });
 });
 
 // ============================================================
@@ -116,7 +116,7 @@ router.post('/invoices/:id/pay', (req, res) => {
   db.prepare(`UPDATE ap_invoices SET amount_paid = ?, balance_due = ?, status = ?, paid_at = CASE WHEN ? <= 0 THEN datetime('now') ELSE paid_at END, payment_method = ?, payment_reference = ?, updated_at = datetime('now') WHERE id = ?`)
     .run(newAmountPaid, Math.max(0, newBalance), newStatus, newBalance, payment_method || 'check', reference_number || null, req.params.id);
 
-  res.json({ id: result.lastInsertRowid, new_balance: Math.max(0, newBalance), status: newStatus, message: 'Payment recorded' });
+  res.json({ success: true, id: result.lastInsertRowid, new_balance: Math.max(0, newBalance), status: newStatus, message: 'Payment recorded' });
 });
 
 // ============================================================
@@ -174,7 +174,7 @@ router.post('/workflows', (req, res) => {
   const { name, entity_type, min_amount, max_amount, required_role, auto_approve_below } = req.body;
   const result = db.prepare(`INSERT INTO approval_workflows (name, entity_type, min_amount, max_amount, required_role, auto_approve_below) VALUES (?, ?, ?, ?, ?, ?)`)
     .run(name, entity_type, min_amount || 0, max_amount || null, required_role || 'manager', auto_approve_below || 0);
-  res.json({ id: result.lastInsertRowid, message: 'Workflow created' });
+  res.json({ success: true, id: result.lastInsertRowid, message: 'Workflow created' });
 });
 
 // GET /api/ap/dashboard

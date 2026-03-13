@@ -51,7 +51,7 @@ router.post('/lines', authenticate, (req, res) => {
     req.employee?.id || null
   );
 
-  res.json({ id: result.lastInsertRowid, message: 'Voicemail line created' });
+  res.json({ success: true, id: result.lastInsertRowid, message: 'Voicemail line created' });
 });
 
 // PUT /api/voicemail/lines/:id - Update a voicemail line
@@ -68,7 +68,7 @@ router.put('/lines/:id', authenticate, (req, res) => {
   updates.push("updated_at = datetime('now')");
   values.push(req.params.id);
   db.prepare(`UPDATE voicemail_lines SET ${updates.join(', ')} WHERE id = ?`).run(...values);
-  res.json({ message: 'Line updated' });
+  res.json({ success: true, message: 'Line updated' });
 });
 
 // DELETE /api/voicemail/lines/:id - Delete a voicemail line
@@ -83,7 +83,7 @@ router.delete('/lines/:id', authenticate, (req, res) => {
   }
 
   db.prepare('DELETE FROM voicemail_lines WHERE id = ?').run(req.params.id);
-  res.json({ message: 'Line deleted' });
+  res.json({ success: true, message: 'Line deleted' });
 });
 
 // ============================================================
@@ -117,7 +117,7 @@ router.post('/numbers/provision', authenticate, async (req, res) => {
         .run(result.phoneNumber, result.sid, line_id);
     }
 
-    res.json({ message: 'Number provisioned', ...result });
+    res.json({ success: true, message: 'Number provisioned', ...result });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -168,14 +168,14 @@ router.put('/messages/:id', authenticate, (req, res) => {
   }
   values.push(req.params.id);
   db.prepare(`UPDATE voicemail_messages SET ${updates.join(', ')} WHERE id = ?`).run(...values);
-  res.json({ message: 'Message updated' });
+  res.json({ success: true, message: 'Message updated' });
 });
 
 // DELETE /api/voicemail/messages/:id
 router.delete('/messages/:id', authenticate, (req, res) => {
   const db = getDb();
   db.prepare('DELETE FROM voicemail_messages WHERE id = ?').run(req.params.id);
-  res.json({ message: 'Message deleted' });
+  res.json({ success: true, message: 'Message deleted' });
 });
 
 // GET /api/voicemail/dashboard - Dashboard stats
@@ -291,14 +291,14 @@ router.put('/missed-calls/:id', authenticate, (req, res) => {
   if (updates.length === 0) return res.status(400).json({ error: 'No fields to update' });
   values.push(req.params.id);
   db.prepare(`UPDATE missed_calls SET ${updates.join(', ')} WHERE id = ?`).run(...values);
-  res.json({ message: 'Missed call updated' });
+  res.json({ success: true, message: 'Missed call updated' });
 });
 
 // DELETE /api/voicemail/missed-calls/:id
 router.delete('/missed-calls/:id', authenticate, (req, res) => {
   const db = getDb();
   db.prepare('DELETE FROM missed_calls WHERE id = ?').run(req.params.id);
-  res.json({ message: 'Missed call deleted' });
+  res.json({ success: true, message: 'Missed call deleted' });
 });
 
 // POST /api/voicemail/missed-calls/return-all - Bulk mark as returned
@@ -309,7 +309,7 @@ router.post('/missed-calls/return-all', authenticate, (req, res) => {
   const placeholders = ids.map(() => '?').join(',');
   db.prepare(`UPDATE missed_calls SET returned = 1, returned_at = datetime('now'), returned_by = ? WHERE id IN (${placeholders})`)
     .run(req.employee?.id || null, ...ids);
-  res.json({ message: `${ids.length} calls marked as returned` });
+  res.json({ success: true, message: `${ids.length} calls marked as returned` });
 });
 
 // ============================================================

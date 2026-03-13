@@ -52,7 +52,7 @@ router.post('/', (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(name, locationCode, address || null, city || null, state || null, zip || null, phone || null, email || null, timezone || 'America/New_York', tax_rate || 0.08, manager_id || null);
 
-  res.json({ id: result.lastInsertRowid, code: locationCode, message: 'Location created' });
+  res.json({ success: true, id: result.lastInsertRowid, code: locationCode, message: 'Location created' });
 });
 
 // PUT /api/locations/:id
@@ -61,7 +61,7 @@ router.put('/:id', (req, res) => {
   const { name, address, city, state, zip, phone, email, timezone, tax_rate, manager_id, status } = req.body;
   db.prepare(`UPDATE locations SET name = COALESCE(?, name), address = COALESCE(?, address), city = COALESCE(?, city), state = COALESCE(?, state), zip = COALESCE(?, zip), phone = COALESCE(?, phone), email = COALESCE(?, email), timezone = COALESCE(?, timezone), tax_rate = COALESCE(?, tax_rate), manager_id = COALESCE(?, manager_id), status = COALESCE(?, status) WHERE id = ?`)
     .run(name, address, city, state, zip, phone, email, timezone, tax_rate, manager_id, status, req.params.id);
-  res.json({ message: 'Location updated' });
+  res.json({ success: true, message: 'Location updated' });
 });
 
 // ============================================================
@@ -77,7 +77,7 @@ router.post('/:id/staff', (req, res) => {
   try {
     db.prepare(`INSERT INTO location_employees (location_id, employee_id, role, is_primary, start_date) VALUES (?, ?, ?, ?, date('now'))`)
       .run(req.params.id, employee_id, role || 'staff', is_primary !== undefined ? (is_primary ? 1 : 0) : 1);
-    res.json({ message: 'Staff assigned to location' });
+    res.json({ success: true, message: 'Staff assigned to location' });
   } catch (err) {
     if (err.message.includes('UNIQUE')) return res.status(400).json({ error: 'Employee already assigned to this location' });
     throw err;
@@ -88,7 +88,7 @@ router.post('/:id/staff', (req, res) => {
 router.delete('/:id/staff/:employeeId', (req, res) => {
   const db = getDb();
   db.prepare('DELETE FROM location_employees WHERE location_id = ? AND employee_id = ?').run(req.params.id, req.params.employeeId);
-  res.json({ message: 'Staff removed from location' });
+  res.json({ success: true, message: 'Staff removed from location' });
 });
 
 // ============================================================
@@ -184,28 +184,28 @@ router.post('/transfers', (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `).run(from_location_id, to_location_id, ingredient_id, quantity, unit || null, requested_by || null, notes || null);
 
-  res.json({ id: result.lastInsertRowid, message: 'Transfer requested' });
+  res.json({ success: true, id: result.lastInsertRowid, message: 'Transfer requested' });
 });
 
 // PATCH /api/locations/transfers/:id/approve
 router.patch('/transfers/:id/approve', (req, res) => {
   const db = getDb();
   db.prepare(`UPDATE inter_location_transfers SET status = 'approved', approved_by = ? WHERE id = ?`).run(req.body.approved_by || null, req.params.id);
-  res.json({ message: 'Transfer approved' });
+  res.json({ success: true, message: 'Transfer approved' });
 });
 
 // PATCH /api/locations/transfers/:id/ship
 router.patch('/transfers/:id/ship', (req, res) => {
   const db = getDb();
   db.prepare(`UPDATE inter_location_transfers SET status = 'shipped', shipped_at = datetime('now') WHERE id = ?`).run(req.params.id);
-  res.json({ message: 'Transfer shipped' });
+  res.json({ success: true, message: 'Transfer shipped' });
 });
 
 // PATCH /api/locations/transfers/:id/receive
 router.patch('/transfers/:id/receive', (req, res) => {
   const db = getDb();
   db.prepare(`UPDATE inter_location_transfers SET status = 'received', received_at = datetime('now') WHERE id = ?`).run(req.params.id);
-  res.json({ message: 'Transfer received' });
+  res.json({ success: true, message: 'Transfer received' });
 });
 
 module.exports = router;

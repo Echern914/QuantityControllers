@@ -51,7 +51,7 @@ router.post('/', (req, res) => {
     const db = getDb();
     const result = db.prepare(`INSERT INTO tables (name, section, capacity, shape, pos_x, pos_y, width, height) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
       .run(name, section || 'main', capacity || 4, shape || 'rect', pos_x || 0, pos_y || 0, width || 80, height || 80);
-    res.json({ id: result.lastInsertRowid });
+    res.json({ success: true, id: result.lastInsertRowid });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

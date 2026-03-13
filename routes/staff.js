@@ -46,7 +46,7 @@ router.post('/', (req, res) => {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(first_name, last_name, pinHash, role || 'server', email, phone, hourly_rate || 0, hire_date, color || '#6366f1');
 
-    res.json({ id: result.lastInsertRowid, first_name, last_name, role });
+    res.json({ success: true, id: result.lastInsertRowid, first_name, last_name, role });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

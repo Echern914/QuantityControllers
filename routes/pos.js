@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { getDb } = require('../db/database');
 const { authenticate } = require('../middleware/auth');
+const { paginate } = require('../middleware/response');
 const { deductForOrder } = require('../services/deduction');
 
 // All routes require authentication
@@ -75,9 +76,9 @@ router.get('/orders', (req, res) => {
   if (date) { conditions.push("date(o.opened_at) = ?"); params.push(date); }
 
   if (conditions.length) sql += ' WHERE ' + conditions.join(' AND ');
-  sql += ' ORDER BY o.opened_at DESC LIMIT 200';
+  sql += ' ORDER BY o.opened_at DESC';
 
-  res.json(db.prepare(sql).all(...params));
+  res.json(paginate(db, sql, params, req.query, { defaultLimit: 200 }));
 });
 
 // GET /api/pos/orders/:id
@@ -171,22 +172,22 @@ router.post('/orders/:id/send', (req, res) => {
   // Get unsent items
   const items = db.prepare(`SELECT oi.*, mi.station, mi.prep_time_minutes FROM order_items oi JOIN menu_items mi ON oi.menu_item_id = mi.id WHERE oi.order_id = ? AND oi.status = 'pending' AND oi.voided = 0`).all(orderId);
 
-  if (items.length === 0) return res.json({ message: 'No items to send' });
+  if (items.length === 0) return res.json({ success: true, message: 'No items to send' });
 
-  // Mark as sent and add to kitchen queue
-  const updateItem = db.prepare(`UPDATE order_items SET status = 'sent', sent_to_kitchen_at = datetime('now') WHERE id = ?`);
-  const insertQueue = db.prepare(`INSERT INTO kitchen_queue (order_id, order_item_id, station, estimated_prep_minutes) VALUES (?, ?, ?, ?)`);
+  // Atomic: mark sent + kitchen queue + inventory deduction
+  const deductionResults = db.transaction(() => {
+    const updateItem = db.prepare(`UPDATE order_items SET status = 'sent', sent_to_kitchen_at = datetime('now') WHERE id = ?`);
+    const insertQueue = db.prepare(`INSERT INTO kitchen_queue (order_id, order_item_id, station, estimated_prep_minutes) VALUES (?, ?, ?, ?)`);
 
-  for (const item of items) {
-    updateItem.run(item.id);
-    insertQueue.run(orderId, item.id, item.station || 'kitchen', item.prep_time_minutes || 5);
-  }
+    for (const item of items) {
+      updateItem.run(item.id);
+      insertQueue.run(orderId, item.id, item.station || 'kitchen', item.prep_time_minutes || 5);
+    }
 
-  // Deduct inventory
-  const deductionResults = deductForOrder(orderId, items, order.employee_id);
-
-  // Update order status
-  db.prepare(`UPDATE orders SET status = 'sent' WHERE id = ? AND status = 'open'`).run(orderId);
+    const results = deductForOrder(orderId, items, order.employee_id);
+    db.prepare(`UPDATE orders SET status = 'sent' WHERE id = ? AND status = 'open'`).run(orderId);
+    return results;
+  })();
 
   // Broadcast to KDS
   req.app.locals.broadcast({ type: 'kitchen_order', orderId, orderNumber: order.order_number, items: items.map(i => ({ name: i.name, qty: i.quantity, station: i.station })) });
@@ -197,45 +198,57 @@ router.post('/orders/:id/send', (req, res) => {
 // POST /api/pos/orders/:id/pay
 router.post('/orders/:id/pay', (req, res) => {
   const { payments } = req.body; // Array of { method, amount, tip, card_last_four }
+  if (!payments || !Array.isArray(payments) || payments.length === 0) {
+    return res.status(400).json({ error: 'payments array required' });
+  }
   const db = getDb();
   const orderId = parseInt(req.params.id);
   const order = db.prepare(`SELECT * FROM orders WHERE id = ?`).get(orderId);
   if (!order) return res.status(404).json({ error: 'Order not found' });
+  if (order.status === 'voided') return res.status(400).json({ error: 'Cannot pay a voided order' });
+  if (order.payment_status === 'paid') return res.status(400).json({ error: 'Order already fully paid' });
 
-  const insertPayment = db.prepare(`
-    INSERT INTO order_payments (order_id, payment_method, amount, tip, card_last_four, employee_id) VALUES (?, ?, ?, ?, ?, ?)
-  `);
-
-  let totalPaid = 0;
-  let totalTip = 0;
-
+  // Validate payment amounts
   for (const p of payments) {
-    insertPayment.run(orderId, p.method, p.amount, p.tip || 0, p.card_last_four, order.employee_id);
-    totalPaid += p.amount;
-    totalTip += (p.tip || 0);
+    if (!p.method || typeof p.amount !== 'number' || p.amount <= 0) {
+      return res.status(400).json({ error: 'Each payment needs a method and positive amount' });
+    }
   }
 
-  const previousPayments = db.prepare(`SELECT COALESCE(SUM(amount), 0) as paid FROM order_payments WHERE order_id = ?`).get(orderId);
-  const paymentStatus = previousPayments.paid >= order.total ? 'paid' : 'partial';
+  // Atomic payment processing in a transaction
+  const result = db.transaction(() => {
+    const insertPayment = db.prepare(`
+      INSERT INTO order_payments (order_id, payment_method, amount, tip, card_last_four, employee_id) VALUES (?, ?, ?, ?, ?, ?)
+    `);
 
-  db.prepare(`UPDATE orders SET payment_status = ?, tip = tip + ?, status = ?, closed_at = CASE WHEN ? = 'paid' THEN datetime('now') ELSE closed_at END WHERE id = ?`)
-    .run(paymentStatus, totalTip, paymentStatus === 'paid' ? 'closed' : order.status, paymentStatus, orderId);
+    let totalTip = 0;
+    for (const p of payments) {
+      insertPayment.run(orderId, p.method, p.amount, Math.max(0, p.tip || 0), p.card_last_four, order.employee_id);
+      totalTip += Math.max(0, p.tip || 0);
+    }
 
-  // Free up table
-  if (paymentStatus === 'paid' && order.table_id) {
-    db.prepare(`UPDATE tables SET status = 'dirty', current_order_id = NULL WHERE id = ?`).run(order.table_id);
-  }
+    const totalPaidRow = db.prepare(`SELECT COALESCE(SUM(amount), 0) as paid FROM order_payments WHERE order_id = ?`).get(orderId);
+    const paymentStatus = totalPaidRow.paid >= order.total ? 'paid' : 'partial';
 
-  // Update customer stats
-  if (order.customer_id && paymentStatus === 'paid') {
-    const loyaltyRate = parseInt(db.prepare(`SELECT value FROM settings WHERE key = 'loyalty_points_per_dollar'`).get()?.value || '1');
-    const points = Math.floor(order.total * loyaltyRate);
-    db.prepare(`UPDATE customers SET total_visits = total_visits + 1, total_spent = total_spent + ?, loyalty_points = loyalty_points + ?, last_visit_at = datetime('now') WHERE id = ?`)
-      .run(order.total, points, order.customer_id);
-  }
+    db.prepare(`UPDATE orders SET payment_status = ?, tip = tip + ?, status = ?, closed_at = CASE WHEN ? = 'paid' THEN datetime('now') ELSE closed_at END WHERE id = ?`)
+      .run(paymentStatus, totalTip, paymentStatus === 'paid' ? 'closed' : order.status, paymentStatus, orderId);
+
+    if (paymentStatus === 'paid' && order.table_id) {
+      db.prepare(`UPDATE tables SET status = 'dirty', current_order_id = NULL WHERE id = ?`).run(order.table_id);
+    }
+
+    if (order.customer_id && paymentStatus === 'paid') {
+      const loyaltyRate = parseInt(db.prepare(`SELECT value FROM settings WHERE key = 'loyalty_points_per_dollar'`).get()?.value || '1');
+      const points = Math.floor(order.total * loyaltyRate);
+      db.prepare(`UPDATE customers SET total_visits = total_visits + 1, total_spent = total_spent + ?, loyalty_points = loyalty_points + ?, last_visit_at = datetime('now') WHERE id = ?`)
+        .run(order.total, points, order.customer_id);
+    }
+
+    return { payment_status: paymentStatus, total_paid: totalPaidRow.paid, remaining: Math.max(0, +(order.total - totalPaidRow.paid).toFixed(2)) };
+  })();
 
   req.app.locals.broadcast({ type: 'order_paid', orderId, orderNumber: order.order_number });
-  res.json({ payment_status: paymentStatus, total_paid: previousPayments.paid, remaining: Math.max(0, order.total - previousPayments.paid) });
+  res.json(result);
 });
 
 // POST /api/pos/orders/:id/split
@@ -281,15 +294,20 @@ router.post('/orders/:id/split', (req, res) => {
 
 // POST /api/pos/orders/:id/void
 router.post('/orders/:id/void', (req, res) => {
-  const { reason, manager_pin } = req.body;
+  const { reason } = req.body;
   const db = getDb();
-  db.prepare(`UPDATE orders SET status = 'voided', notes = COALESCE(notes, '') || ' [VOIDED: ' || ? || ']' WHERE id = ?`).run(reason || 'No reason', req.params.id);
-  db.prepare(`UPDATE order_items SET voided = 1, void_reason = ? WHERE order_id = ?`).run(reason, req.params.id);
+  const order = db.prepare(`SELECT id, status, table_id, payment_status FROM orders WHERE id = ?`).get(req.params.id);
+  if (!order) return res.status(404).json({ error: 'Order not found' });
+  if (order.status === 'voided') return res.json({ success: true, already_voided: true });
+  if (order.payment_status === 'paid') return res.status(400).json({ error: 'Cannot void a paid order — use refund instead' });
 
-  const order = db.prepare(`SELECT table_id FROM orders WHERE id = ?`).get(req.params.id);
-  if (order?.table_id) {
-    db.prepare(`UPDATE tables SET status = 'open', current_order_id = NULL WHERE id = ?`).run(order.table_id);
-  }
+  db.transaction(() => {
+    db.prepare(`UPDATE orders SET status = 'voided', notes = COALESCE(notes, '') || ' [VOIDED: ' || ? || ']' WHERE id = ?`).run(reason || 'No reason', order.id);
+    db.prepare(`UPDATE order_items SET voided = 1, void_reason = ? WHERE order_id = ? AND voided = 0`).run(reason, order.id);
+    if (order.table_id) {
+      db.prepare(`UPDATE tables SET status = 'open', current_order_id = NULL WHERE id = ?`).run(order.table_id);
+    }
+  })();
 
   res.json({ success: true });
 });
@@ -301,11 +319,15 @@ router.post('/orders/:id/discount', (req, res) => {
   const order = db.prepare(`SELECT subtotal FROM orders WHERE id = ?`).get(req.params.id);
   if (!order) return res.status(404).json({ error: 'Order not found' });
 
+  if (typeof discount_value !== 'number' || discount_value < 0) {
+    return res.status(400).json({ error: 'discount_value must be a non-negative number' });
+  }
   let discount = 0;
   if (discount_type === 'percent') {
+    if (discount_value > 100) return res.status(400).json({ error: 'Percent discount cannot exceed 100' });
     discount = +(order.subtotal * discount_value / 100).toFixed(2);
   } else {
-    discount = +discount_value.toFixed(2);
+    discount = Math.min(+discount_value.toFixed(2), order.subtotal);
   }
 
   db.prepare(`UPDATE orders SET discount = ?, discount_reason = ? WHERE id = ?`).run(discount, reason, req.params.id);
@@ -337,7 +359,7 @@ router.post('/tabs', (req, res) => {
   const { name, customer_id, employee_id, card_last_four } = req.body;
   const db = getDb();
   const result = db.prepare(`INSERT INTO tabs (name, customer_id, employee_id, card_last_four) VALUES (?, ?, ?, ?)`).run(name, customer_id, employee_id, card_last_four);
-  res.json({ id: result.lastInsertRowid, name, status: 'open' });
+  res.json({ success: true, id: result.lastInsertRowid, name, status: 'open' });
 });
 
 router.post('/tabs/:id/close', (req, res) => {
