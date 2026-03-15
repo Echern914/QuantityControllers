@@ -114,6 +114,13 @@ router.post('/orders/:id/items', (req, res) => {
   const { items } = req.body; // Array of { menu_item_id, quantity, modifiers, special_instructions, seat_number, course }
   const db = getDb();
 
+  const order = db.prepare(`SELECT status, payment_status FROM orders WHERE id = ?`).get(req.params.id);
+  if (!order) return res.status(404).json({ error: 'Order not found' });
+  if (order.status === 'voided') return res.status(400).json({ error: 'Cannot add items to a voided order' });
+  if (order.status === 'closed' || order.payment_status === 'paid') {
+    return res.status(400).json({ error: 'Cannot add items to a closed/paid order' });
+  }
+
   const insertItem = db.prepare(`
     INSERT INTO order_items (order_id, menu_item_id, name, quantity, unit_price, modifiers, special_instructions, seat_number, course)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)

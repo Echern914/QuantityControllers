@@ -506,7 +506,7 @@ const App = {
 
   connectSSE() {
     if (this.sseConnection) this.sseConnection.close();
-    this.sseConnection = new EventSource('/api/events');
+    this.sseConnection = new EventSource(`/api/events?token=${API.token}`);
     this.sseConnection.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);

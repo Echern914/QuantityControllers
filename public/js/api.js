@@ -12,17 +12,35 @@ const API = {
   },
 
   async request(method, path, body) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+
     const opts = {
       method,
       headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
     };
     if (this.token) opts.headers['Authorization'] = `Bearer ${this.token}`;
     if (body) opts.body = JSON.stringify(body);
 
-    const res = await fetch(`${this.baseUrl}${path}`, opts);
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || `Request failed: ${res.status}`);
-    return data;
+    try {
+      const res = await fetch(`${this.baseUrl}${path}`, opts);
+      clearTimeout(timeout);
+
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+        return {};
+      }
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `Request failed: ${res.status}`);
+      return data;
+    } catch (err) {
+      clearTimeout(timeout);
+      if (err.name === 'AbortError') throw new Error('Request timed out');
+      throw err;
+    }
   },
 
   get(path) { return this.request('GET', path); },

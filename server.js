@@ -1,19 +1,50 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const path = require('path');
 const { initializeSchema } = require('./db/schema');
 const { errorHandler } = require('./middleware/errorHandler');
+const { optionalAuth } = require('./middleware/auth');
 const { startMonitor, setBroadcast } = require('./services/supply-monitor');
 const cloverOrderSync = require('./services/clover-order-sync');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
-app.use(cors());
-app.use(express.json({ limit: '10mb' }));
+// Security middleware
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "blob:"],
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'"],
+    },
+  },
+}));
+app.use(cors({
+  origin: process.env.CORS_ORIGIN || true,
+  credentials: true,
+}));
+app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Rate limiting on auth endpoints
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { error: 'Too many login attempts, please try again later' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/verify-pin', authLimiter);
+app.use('/api/timeclock/clock-in', authLimiter);
+app.use('/api/timeclock/clock-out', authLimiter);
 
 // SSE clients for real-time notifications
 const sseClients = new Set();
@@ -63,8 +94,11 @@ app.use('/api/drink-deduction', require('./routes/drink-deduction'));
 app.use('/api/sales-tax', require('./routes/sales-tax'));
 app.use('/api/voicemail', require('./routes/voicemail'));
 
-// SSE endpoint
-app.get('/api/events', (req, res) => {
+// SSE endpoint (requires auth via query token)
+app.get('/api/events', optionalAuth, (req, res) => {
+  if (!req.employee) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
@@ -108,7 +142,7 @@ startMonitor(15);
 cloverOrderSync.setBroadcast(broadcast);
 cloverOrderSync.startPolling(10);
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`
   ╔══════════════════════════════════════════════╗
   ║         VENUECORE POS SYSTEM v2.0              ║
@@ -116,3 +150,20 @@ app.listen(PORT, () => {
   ╚══════════════════════════════════════════════╝
   `);
 });
+
+// Graceful shutdown
+function shutdown(signal) {
+  console.log(`\n[${signal}] Shutting down gracefully...`);
+  for (const client of sseClients) { client.end(); }
+  sseClients.clear();
+  cloverOrderSync.stopPolling();
+  server.close(() => {
+    const { getDb } = require('./db/database');
+    try { getDb().close(); } catch {}
+    console.log('[Shutdown] Complete');
+    process.exit(0);
+  });
+  setTimeout(() => { process.exit(1); }, 5000);
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));

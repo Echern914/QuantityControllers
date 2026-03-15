@@ -160,7 +160,7 @@ const POSTerminal = {
           <div class="item-details">
             <div class="item-name">${Utils.escapeHtml(item.name)}</div>
             ${item.special_instructions ? `<div class="item-mods">${Utils.escapeHtml(item.special_instructions)}</div>` : ''}
-            ${item.modifiers && JSON.parse(item.modifiers || '[]').length ? `<div class="item-mods">${JSON.parse(item.modifiers).map(m => m.name).join(', ')}</div>` : ''}
+            ${item.modifiers && JSON.parse(item.modifiers || '[]').length ? `<div class="item-mods">${JSON.parse(item.modifiers).map(m => Utils.escapeHtml(m.name)).join(', ')}</div>` : ''}
           </div>
           <span class="item-price">${Utils.currency(item.unit_price * item.quantity)}</span>
           <div class="item-actions">

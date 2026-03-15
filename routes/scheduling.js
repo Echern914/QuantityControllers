@@ -28,7 +28,20 @@ router.get('/shifts', (req, res) => {
 router.post('/shifts', (req, res) => {
   try {
     const { employee_id, shift_date, start_time, end_time, station, notes } = req.body;
+    if (!employee_id || !shift_date || !start_time || !end_time) {
+      return res.status(400).json({ error: 'employee_id, shift_date, start_time, and end_time are required' });
+    }
+    if (start_time >= end_time) {
+      return res.status(400).json({ error: 'start_time must be before end_time' });
+    }
     const db = getDb();
+    const overlap = db.prepare(`
+      SELECT id FROM shifts
+      WHERE employee_id = ? AND shift_date = ? AND start_time < ? AND end_time > ?
+    `).get(employee_id, shift_date, end_time, start_time);
+    if (overlap) {
+      return res.status(409).json({ error: 'Shift overlaps with an existing shift for this employee' });
+    }
     const result = db.prepare(`INSERT INTO shifts (employee_id, shift_date, start_time, end_time, station, notes) VALUES (?, ?, ?, ?, ?, ?)`)
       .run(employee_id, shift_date, start_time, end_time, station, notes);
     res.json({ success: true, id: result.lastInsertRowid });
@@ -41,7 +54,19 @@ router.post('/shifts', (req, res) => {
 router.put('/shifts/:id', (req, res) => {
   try {
     const { employee_id, shift_date, start_time, end_time, station, notes } = req.body;
+    if (start_time && end_time && start_time >= end_time) {
+      return res.status(400).json({ error: 'start_time must be before end_time' });
+    }
     const db = getDb();
+    if (employee_id && shift_date && start_time && end_time) {
+      const overlap = db.prepare(`
+        SELECT id FROM shifts
+        WHERE employee_id = ? AND shift_date = ? AND start_time < ? AND end_time > ? AND id != ?
+      `).get(employee_id, shift_date, end_time, start_time, req.params.id);
+      if (overlap) {
+        return res.status(409).json({ error: 'Shift overlaps with an existing shift for this employee' });
+      }
+    }
     db.prepare(`UPDATE shifts SET employee_id=?, shift_date=?, start_time=?, end_time=?, station=?, notes=? WHERE id=?`)
       .run(employee_id, shift_date, start_time, end_time, station, notes, req.params.id);
     res.json({ success: true });

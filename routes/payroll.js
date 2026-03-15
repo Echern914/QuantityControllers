@@ -47,6 +47,19 @@ router.post('/runs', (req, res) => {
     return res.status(400).json({ error: 'Pay period start, end, and pay date required' });
   }
 
+  // Prevent duplicate payroll runs for the same period
+  const existingRun = db.prepare(`
+    SELECT id, status FROM payroll_runs
+    WHERE pay_period_start = ? AND pay_period_end = ? AND status != 'draft'
+  `).get(pay_period_start, pay_period_end);
+  if (existingRun) {
+    return res.status(409).json({ error: `A ${existingRun.status} payroll run already exists for this period (ID: ${existingRun.id})` });
+  }
+
+  // Clean up any abandoned draft for this period
+  db.prepare(`DELETE FROM payroll_runs WHERE pay_period_start = ? AND pay_period_end = ? AND status = 'draft'`)
+    .run(pay_period_start, pay_period_end);
+
   // Get settings
   const getSetting = (key) => db.prepare('SELECT value FROM settings WHERE key = ?').get(key)?.value;
   const fedRate = parseFloat(getSetting('federal_tax_rate') || '0.12');

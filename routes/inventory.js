@@ -92,7 +92,10 @@ router.patch('/:id', (req, res) => {
   const db = getDb();
   const sets = [];
   const params = [];
-  if (quantity !== undefined) { sets.push('quantity = ?'); params.push(quantity); }
+  if (quantity !== undefined) {
+    if (quantity < 0) return res.status(400).json({ error: 'Quantity cannot be negative' });
+    sets.push('quantity = ?'); params.push(quantity);
+  }
   if (location) { sets.push('location = ?'); params.push(location); }
   if (status) {
     sets.push('status = ?'); params.push(status);
@@ -496,18 +499,24 @@ router.patch('/transfers/:id/approve', (req, res) => {
     for (const item of sourceItems) {
       if (remaining <= 0) break;
       const deduct = Math.min(item.quantity, remaining);
-      db.prepare(`UPDATE inventory SET quantity = quantity - ? WHERE id = ?`).run(deduct, item.id);
+      // Atomic deduction with quantity guard to prevent going negative
+      const updated = db.prepare(`UPDATE inventory SET quantity = quantity - ? WHERE id = ? AND quantity >= ?`).run(deduct, item.id, deduct);
+      if (updated.changes === 0) continue; // Skip if concurrent deduction beat us
       if (item.quantity - deduct <= 0) {
         db.prepare(`UPDATE inventory SET status = 'empty', emptied_at = datetime('now') WHERE id = ?`).run(item.id);
       }
       remaining -= deduct;
     }
 
+    if (remaining > 0) {
+      throw new Error(`Insufficient stock: short by ${remaining} ${transfer.quantity > 1 ? 'units' : 'unit'}`);
+    }
+
     // Add to destination
     db.prepare(`
       INSERT INTO inventory (ingredient_id, quantity, full_quantity, location, status)
       VALUES (?, ?, ?, ?, 'sealed')
-    `).run(transfer.ingredient_id, transfer.quantity, transfer.quantity, transfer.to_location);
+    `).run(transfer.ingredient_id, transfer.quantity - remaining, transfer.quantity, transfer.to_location);
 
     // Update transfer status
     db.prepare(`
